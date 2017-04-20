@@ -43,6 +43,8 @@ library(PMCMR)
 library(psych)
 #To read in mothur-formatted data files
 library(phangorn)
+#To read in .dta formatted kinship data
+library(foreign)
 ```
 
 ##Functions
@@ -89,6 +91,9 @@ load("pheno_idpriv.rdata")
 #Replace all negatives (missing data in WLS data) with blanks
 Pheno = replace(Pheno, Pheno < 0, NA)
 Pheno.sm = replace(Pheno.sm, Pheno.sm < 0, NA)
+
+#Kinship scores
+relatedness = read.dta("kinship_microbiome_saveold.dta")
 ```
 
 Order all data by participant IDs
@@ -902,3 +907,20 @@ match.wUF.gs.diet = match.wUF.gs[names(match.wUF.gs) %in% row.names(diet.gs.diff
 match.uwUF.gs.diet = match.uwUF.gs[names(match.uwUF.gs) %in% row.names(diet.gs.diff)]
 ```
 
+###Kinship
+Subset kinship dataset to just related pairs
+```{r}
+relatedness.gs = relatedness[relatedness$idpriv_id1 == relatedness$idpriv_id2,]
+```
+
+Rename row names to match other data
+```{r}
+row.names(relatedness.gs) = paste(relatedness.gs$idpriv_id1, "g", sep="")
+```
+
+Subset to sibling pairs
+```{r}
+relatedness.gs.match = relatedness.gs[row.names(relatedness.gs) %in% names(match.BC.gs),]
+
+relatedness.gs.match = subset(relatedness.gs.match, row.names(relatedness.gs.match) %in% names(match.BC.gs))
+```
