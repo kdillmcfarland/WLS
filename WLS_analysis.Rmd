@@ -21,8 +21,21 @@ library(phyloseq)
 library(PMCMR)
 #Graphing package used in phyloseq. To edit the default setting of a plot, you need to use functions in this package.
 library(ggplot2)
-#Venn diagrams
-library(gplots)
+#Figures
+library(lattice)
+library(gridExtra)
+```
+
+##Functions
+
+* R-krusk: Function to calculate Kruskal-Wallis for OTUs and variables identified in SIMPER analysis. From [A. Steinberger](https://github.com/asteinberger9/seq_scripts)
+* Multiplot: for placing 2 or more ggplot2 graphs in one figure. From [Cookbook for R](http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/)
+* Pairwise_adonis: Pairwise PERMANOVA (adonis) function to test within categorical variables with more than 2 levels. Modified from [P. M. Arbizu](https://www.researchgate.net/post/How_can_I_do_PerMANOVA_pairwise_contrasts_in_R)
+
+```{r}
+source("R_krusk.R")
+source("multiplot.R")
+source("Pairwise_adonis.R")
 ```
 
 ##Data
@@ -794,7 +807,7 @@ boxplot(match.prot.gp.se.gs ~ vars.gp.se.gs$group, ylab="dist.prot")
 #OTUs and health
 OTUs commonly shared between siblings or spouses (> 50% of pairs) and rare in the overall dataset (< 70% of samples, < 49% of unrelated pairs) were correlated to health outcomes in the whole dataset by Kruskal-Wallis with the Benjamini-Hochberg correction for multiple comparisons.
 
-We will co-op the `kruskal.pretty` function to run these tests by creating a fake SIMPER output. We will also need to load our unaltered `.cons.taxonomy` table from mothur as the function cannot take the altered version we have used those far, `Tax`.
+We will co-op the `kruskal.pretty` function to run these tests by creating a fake SIMPER output. We will also need to load our unaltered `.cons.taxonomy` table from mothur as the function cannot take the altered version `Tax` we have used those far.
 
 ```{r}
 #Fake SIMPER output to get OTU list for health analyses
@@ -809,53 +822,358 @@ fake.simper = data.frame(
 Tax.orig = read.table("WLS.final.an.unique_list.0.02.cons.taxonomy", header=TRUE, row.names=1, sep="\t")
 ```
 
+We then run Kruskal-Wallis tests for our health variables with NAs removed.
 ```{r}
-#Run KW script
-kruskal.pretty(OTU[!is.na(Pheno.sm$hbp11),], Pheno.sm[!is.na(Pheno.sm$hbp11),], fake.simper, c("hbp11"), 'hbp2', Tax.orig)
-kruskal.pretty(OTU[!is.na(Pheno.sm$hbs11),], Pheno.sm[!is.na(Pheno.sm$hbs11),], fake.simper, c("hbs11"), 'hbs2', Tax.orig)
-kruskal.pretty(OTU[!is.na(Pheno.sm$heart11),], Pheno.sm[!is.na(Pheno.sm$heart11),], fake.simper, c("heart11"), 'heart2', Tax.orig)
-kruskal.pretty(OTU[!is.na(Pheno.sm$arth11),], Pheno.sm[!is.na(Pheno.sm$arth11),], fake.simper, c("arth11"), 'arth2', Tax.orig)
-kruskal.pretty(OTU[!is.na(Pheno.sm$cancer11),], Pheno.sm[!is.na(Pheno.sm$cancer11),], fake.simper, c("cancer11"), 'cancer2', Tax.orig)
-kruskal.pretty(OTU[!is.na(Pheno.sm$stroke11),], Pheno.sm[!is.na(Pheno.sm$stroke11),], fake.simper, c("stroke11"), 'stroke2', Tax.orig)
+kruskal.pretty(OTU[!is.na(Pheno.sm$hbp11),], Pheno.sm[!is.na(Pheno.sm$hbp11),], fake.simper, c("hbp11"), 'hbp', Tax.orig)
+kruskal.pretty(OTU[!is.na(Pheno.sm$hbs11),], Pheno.sm[!is.na(Pheno.sm$hbs11),], fake.simper, c("hbs11"), 'hbs', Tax.orig)
+kruskal.pretty(OTU[!is.na(Pheno.sm$heart11),], Pheno.sm[!is.na(Pheno.sm$heart11),], fake.simper, c("heart11"), 'heart', Tax.orig)
+kruskal.pretty(OTU[!is.na(Pheno.sm$arth11),], Pheno.sm[!is.na(Pheno.sm$arth11),], fake.simper, c("arth11"), 'arth', Tax.orig)
+kruskal.pretty(OTU[!is.na(Pheno.sm$cancer11),], Pheno.sm[!is.na(Pheno.sm$cancer11),], fake.simper, c("cancer11"), 'cancer', Tax.orig)
+kruskal.pretty(OTU[!is.na(Pheno.sm$stroke11),], Pheno.sm[!is.na(Pheno.sm$stroke11),], fake.simper, c("stroke11"), 'stroke', Tax.orig)
+```
 
-#IBS
-##G = Pheno$jx148rer
-##S = Pheno$px148rer
+The IBS variable was not part of the Pheno.sm survey so we curate it from the larger Pheno data set.
+
+* jx148rer = graduates
+* px148rer = siblings
+
+```{r}
 vars.IBS = data.frame(
   IBS = c(Pheno$jx148rer, Pheno$px148rer),
   ID = c(paste(Pheno$idpriv, "g", sep=""), paste(Pheno$idpriv, "s", sep="")),
   row.names = c(paste(Pheno$idpriv, "g", sep=""), paste(Pheno$idpriv, "s", sep=""))
 )
+
+#Subset to data with microbiota samples and IBS data
 vars.IBS.sub = as.data.frame(subset(vars.IBS, row.names(vars.IBS) %in% row.names(OTU)))
 vars.IBS.all = as.data.frame(vars.IBS.sub[!is.na(vars.IBS.sub$IBS),])
 OTU.IBS = subset(OTU, row.names(OTU) %in% row.names(vars.IBS.all))
+```
 
+Run Kruskal-Wallis test of new IBS varibale.
+```{r}
 kruskal.pretty(OTU.IBS, vars.IBS.all, fake.simper, c("IBS"), 'IBS', Tax.orig)
 ```
 
+#Figures
+##Figure 1
 ```{r}
-OTU.list = c("Otu00004","Otu00019","Otu00074","Otu00160","Otu00295")
-ID.list = c(800550,801584,802272,819779,824947,826574,801963,805180,808517,808636,809723,809900,810597,814536,814992,817416,817811,818880,820532,822104,824899,829961,830111,831609,831872,831979,833554,833630,802057,802495,803711,805676,806210,806237,807715,810586,812445,813665,820767,800512,801318,801462,801537,802713,802925,805243,805681,805724,807581,808440,811009,811366,811742,812010,812652,812821,813950,815703,815776,816833,819326,820472,820993,822455,822703,825077,825908,828896,830250,831690,833559,833403,833471,810333,809805,829663,830014,831494,800718,800961,801486,802275,803188,804208,805077,805501,805648,806711,807154,807639,808247,809162,809574,809619,810730,810821,811550,811602,812130,815145,815170,815860,818097,820967,821764,823308,826853,827001,827503,828168,829266,832116,832237,832551,832769,832901,833533,803243,804279,806568,808232,809341,811959,812856,817436,817708,820266,821760,824464,826567,829496,801163)
+set.seed(51234)
+#Calculate NMDS
+uwUF.g.ordu = ordinate(physeq.tree.g, method="NMDS", distance="unifrac", weighted=FALSE)
 
-compare.abunds = function(OTU.list, ID.list, abund.table, Met.table){
-for(i in 1:length(ID.list)){
-  current.abund = abund.table[Met.table$ID == ID.list[i],]
-  current.met = Met.table[Met.table$ID == ID.list[i],]
-  for(y in 1:length(OTU.list)){
-      abundance1 = current.abund[[OTU.list[y]]]*100
-      link1 = current.met$Link
-      ID1 = rep(ID.list[i], length(link1))
-      OTU1 = rep(OTU.list[y], length(link1))
-      output = matrix(c(abundance1,link1,ID1,OTU1), ncol=4)
-      write.table(output, file="compare.abunds.csv", append=TRUE, sep=",", col.names=FALSE)
-  }}
-  z=read.table("compare.abunds.csv", sep=",", fill=TRUE, header=FALSE)
-  file.remove("compare.abunds.csv")
-  z=z[-c(1)]
-  colnames(z) = c("abundance","link","ID","OTU")
-  z$link=ifelse(z$link==1,"e", ifelse(z$link==2,"g", ifelse(z$link==3,"p", ifelse(z$link==4,"s","unknown"))))
-  write.csv(z, file="compare.abunds.csv")
-}
+#Create data set of just significant variables
+vars.envfit = data.frame(
+  AB = ifelse(vars.g$AB == "Y", 2, 1), #Reverse code so that arrow points toward Y responses
+  cohabYN = ifelse(vars.g$cohabYN == "N", 1, 2),#Reverse code so that arrow points toward Y responses
+  socialness = vars.g$social.sum,
+  hbs = ifelse(vars.g$hbs11 == "Y", 2, 1),#Reverse code so that arrow points toward Y responses
+  heart = ifelse(vars.g$heart11 == 1, 2, 1),#Reverse code so that arrow points toward Y responses
+  meat = vars.g$meat,
+  poultry = vars.g$poul,
+  prot.sum = vars.g$prot.sum,
+  social.cohabY = ifelse(vars.g$cohabYN == "Y", vars.g$social.sum, NA),
+  social.cohabN = ifelse(vars.g$cohabYN == "N", vars.g$social.sum, NA),
+  row.names = row.names(vars.g))
 
-compare.abunds(OTU.list, ID.list, abund, Met)
+
+#Fit variables to NMDS
+ef.uwUF.AB = envfit(uwUF.g.ordu ~ AB, data=vars.envfit, na.rm=TRUE)
+ef.uwUF.socY = envfit(uwUF.g.ordu ~ social.cohabY, data=vars.envfit, na.rm=TRUE)
+ef.uwUF.socN = envfit(uwUF.g.ordu ~ social.cohabN, data=vars.envfit, na.rm=TRUE)
+ef.uwUF.hbs = envfit(uwUF.g.ordu ~ hbs, data=vars.envfit, na.rm=TRUE)
+ef.uwUF.heart = envfit(uwUF.g.ordu ~ heart, data=vars.envfit, na.rm=TRUE)
+ef.uwUF.meat = envfit(uwUF.g.ordu ~ meat, data=vars.envfit, na.rm=TRUE)
+ef.uwUF.poul = envfit(uwUF.g.ordu ~ poultry, data=vars.envfit, na.rm=TRUE)
+
+#Figure 1
+postscript("FIGURE1.eps", width = 4.2, height = 4.5, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+plot(uwUF.g.ordu, type="n", main="", xlab="", ylab="")
+points(uwUF.g.ordu, pch=21, cex=0.75, display="sites", col="black", bg=c("red","blue")[as.factor(Pheno.sm.g$gender)])
+plot(ef.uwUF.AB, col="red")
+plot(ef.uwUF.socY, col="black")
+plot(ef.uwUF.socN, col="red")
+plot(ef.uwUF.hbs, col="red")
+plot(ef.uwUF.heart, col="red")
+plot(ef.uwUF.meat, col="black")
+plot(ef.uwUF.poul, col="black")
+dev.off()
+```
+
+##Figure 2
+```{r}
+#Figure 2
+postscript("FIGURE2.eps", width = 5, height = 3, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+layout(matrix(c(1,2), 1, 2, byrow = TRUE), widths=c(1,1), heights=c(1,1))
+
+#Shannon
+boxplot(Met.g$shannon ~ vars.g$cohabYN, ylab="Shannon's diversity", main="", xlab="Cohabitating", col=c("red", "blue"))
+stripchart(Met.g$shannon ~ vars.g$cohabYN, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.25)
+
+#Chao
+boxplot(Met.g$chao ~ vars.g$cohabYN, ylab="Chao's richness", main="", xlab="Cohabitating", col=c("red", "blue"))
+stripchart(Met.g$chao ~ vars.g$cohabYN, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.25)
+dev.off()
+```
+
+##Figure 3
+```{r}
+#Load results from KW.subsample.fxn
+KW.results.final = read.table("KW.results.csv", sep=",")
+
+#Re-organize into data frame
+gp.se.gs.boxplot = data.frame(
+  BC = c(match.BC.gp.se.gs, KW.results.final[KW.results.final$V6 == "dist" & complete.cases(KW.results.final),]$V2),
+  J = c(match.J.gp.se.gs, KW.results.final[KW.results.final$V6 == "dist" & complete.cases(KW.results.final),]$V3),
+  wUF = c(match.wUF.gp.se.gs, KW.results.final[KW.results.final$V6 == "dist" & complete.cases(KW.results.final),]$V4),
+  uwUF = c(match.uwUF.gp.se.gs, KW.results.final[KW.results.final$V6 == "dist" & complete.cases(KW.results.final),]$V5),
+  group = c(rep("1.spouse", length(match.BC.gp.se)), rep("2.sibling", length(match.BC.gs)), rep("3.unrelated", 100000))
+)
+
+#Add variable for closeness:pair type
+vars.gp.se.gs$closeness.group = ifelse(floor(vars.gp.se.gs$closeness) == 1 & vars.gp.se.gs$group == "spouse", "1.spouse",
+                                ifelse(floor(vars.gp.se.gs$closeness) == 2 & vars.gp.se.gs$group == "spouse", "2.spouse",
+                                ifelse(floor(vars.gp.se.gs$closeness) == 3 & vars.gp.se.gs$group == "spouse", "3.spouse", 
+                                ifelse(floor(vars.gp.se.gs$closeness) == 4 & vars.gp.se.gs$group == "spouse", "4.spouse",       
+                                ifelse(floor(vars.gp.se.gs$closeness) == 1 & vars.gp.se.gs$group == "sib", "1.sib",       
+                                ifelse(floor(vars.gp.se.gs$closeness) == 2 & vars.gp.se.gs$group == "sib", "2.sib",       
+                                ifelse(floor(vars.gp.se.gs$closeness) == 3 & vars.gp.se.gs$group == "sib", "3.sib",       
+                                ifelse(floor(vars.gp.se.gs$closeness) == 4 & vars.gp.se.gs$group == "sib", "4.sib", floor(vars.gp.se.gs$closeness)))))))))    
+
+#Figure 3
+postscript("FIGURE3.eps", width = 8, height = 5, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+layout(matrix(c(1,2,3), 1, 3, byrow = TRUE), widths=c(2,2.5,3), heights=c(1,1,1))
+
+boxplot(gp.se.gs.boxplot$uwUF ~ gp.se.gs.boxplot$group, main = "", ylab="Unweighted UniFrac distance", col=c("red","blue","white"), ylim=c(0.3,0.95))
+
+boxplot(match.uwUF.gp.se.gs~floor(vars.gp.se.gs$closeness), xlab="", ylab="", main="",  outpch=NA, ylim=c(0.3,0.95), col="purple")
+stripchart(match.uwUF.gp.se.gs~floor(vars.gp.se.gs$closeness), col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.5)
+
+boxplot(match.uwUF.gp.se.gs~vars.gp.se.gs$closeness.group, col=c("blue", "blue", "blue", "red", "blue", "red"), xlab="", ylab="", main="",  outpch=NA, ylim=c(0.3,0.95))
+stripchart(match.uwUF.gp.se.gs~vars.gp.se.gs$closeness.group, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.5)
+
+dev.off()
+```
+
+##Figure 4
+```{r}
+#Calculate relative abundances
+abund = OTU/rowSums(OTU)
+
+#Re-code variable to YN letters
+Pheno.sm$hbs = ifelse(Pheno.sm$hbs11 == 1, "Y", ifelse(Pheno.sm$hbs11 == 2, "N", Pheno.sm$hbs11))
+
+#Combine OTU abundance with health data
+hbs.OTUs1 = data.frame(
+  abundance = c(abund$Otu00160*100,abund$Otu00295*100),
+  OTU = c(rep("OTU160", 408),rep("OTU295", 408)),
+  hbs = rep(Pheno.sm$hbs, 2))
+hbs.OTUs2 = data.frame(
+  abundance = c(abund$Otu00004*100,abund$Otu00019*100,abund$Otu00074*100),
+  OTU = c(rep("OTU004", 408),rep("OTU019", 408),rep("OTU074", 408)),
+  hbs = rep(Pheno.sm$hbs, 3))
+
+#Calculate means and standard deviations of OTU abundances within health groups
+hbs.OTUs.data1 = aggregate(hbs.OTUs1$abundance, by=list(hbs.OTUs1$OTU, hbs.OTUs1$hbs), FUN = function(x) c(mean = mean(x), sd = sd(x), n=length(x)))
+hbs.OTUs.data1 = do.call(data.frame, hbs.OTUs.data1)
+hbs.OTUs.data1$se = hbs.OTUs.data1$x.sd / sqrt(hbs.OTUs.data1$x.n)
+colnames(hbs.OTUs.data1) = c("OTU", "hbs", "mean", "sd", "n", "se")
+
+hbs.OTUs.data2 = aggregate(hbs.OTUs2$abundance, by=list(hbs.OTUs2$OTU, hbs.OTUs2$hbs), FUN = function(x) c(mean = mean(x), sd = sd(x), n=length(x)))
+hbs.OTUs.data2 = do.call(data.frame, hbs.OTUs.data2)
+hbs.OTUs.data2$se = hbs.OTUs.data2$x.sd / sqrt(hbs.OTUs.data2$x.n)
+colnames(hbs.OTUs.data2) = c("OTU", "hbs", "mean", "sd", "n", "se")
+
+#Figure 4
+limits1 <- aes(ymax = hbs.OTUs.data1$mean + hbs.OTUs.data1$se, ymin = hbs.OTUs.data1$mean - hbs.OTUs.data1$se)
+p1 = ggplot(data = hbs.OTUs.data1, aes(x = factor(OTU), y = mean, fill = factor(hbs)))
+limits2 <- aes(ymax = hbs.OTUs.data2$mean + hbs.OTUs.data2$se, ymin = hbs.OTUs.data2$mean - hbs.OTUs.data2$se)
+p2 = ggplot(data = hbs.OTUs.data2, aes(x = factor(OTU), y = mean, fill = factor(hbs)))
+plot1 = p1 + geom_bar(stat = "identity", position = position_dodge(0.9)) +
+  geom_errorbar(limits1, position = position_dodge(0.9),  width = 0.25) +
+  labs(x = "", y = "Relative abundance (%)") + scale_fill_manual(name = "HBS", values=c("red", "blue")) + 
+  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), axis.text = element_text(colour="black"), axis.ticks = element_line(colour="black"))
+plot2 = p2 + geom_bar(stat = "identity", position = position_dodge(0.9)) +
+  geom_errorbar(limits2, position = position_dodge(0.9),  width = 0.25) +
+  labs(x = "", y = "") + scale_fill_manual(name = "HBS", values=c("red", "blue")) + 
+  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), axis.text = element_text(colour="black"), axis.ticks = element_line(colour="black"))
+
+postscript("FIGURE4.eps", width = 5, height = 2.5, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+multiplot(plot1, plot2, cols=2)
+dev.off()
+```
+
+##Figure S1
+```{r}
+set.seed(51234)
+#Calculate NMDS
+BC.g.MDS=metaMDS(OTU.g, distance="bray", k=2, trymax=500)
+J.g.MDS=metaMDS(OTU.g, distance="jaccard", k=2, trymax=500)
+wUF.g.ordu = ordinate(physeq.tree.g, method="NMDS", distance="unifrac", weighted=TRUE)
+
+#Fit environmental variables
+ef.BC.AB = envfit(BC.g.MDS ~ AB, data=vars.envfit, na.rm=TRUE)
+ef.BC.socY = envfit(BC.g.MDS ~ social.cohabY, data=vars.envfit, na.rm=TRUE)
+ef.BC.socN = envfit(BC.g.MDS ~ social.cohabN, data=vars.envfit, na.rm=TRUE)
+ef.BC.hbs = envfit(BC.g.MDS ~ hbs, data=vars.envfit, na.rm=TRUE)
+ef.BC.heart = envfit(BC.g.MDS ~ heart, data=vars.envfit, na.rm=TRUE)
+ef.BC.prot = envfit(BC.g.MDS ~ prot.sum, data=vars.envfit, na.rm=TRUE)
+ef.BC.meat = envfit(BC.g.MDS ~ meat, data=vars.envfit, na.rm=TRUE)
+ef.BC.poul = envfit(BC.g.MDS ~ poultry, data=vars.envfit, na.rm=TRUE)
+
+ef.J.AB = envfit(J.g.MDS ~ AB, data=vars.envfit, na.rm=TRUE)
+ef.J.cohab = envfit(J.g.MDS ~ cohabYN, data=vars.envfit, na.rm=TRUE)
+ef.J.socY = envfit(J.g.MDS ~ social.cohabY, data=vars.envfit, na.rm=TRUE)
+ef.J.socN = envfit(J.g.MDS ~ social.cohabN, data=vars.envfit, na.rm=TRUE)
+ef.J.hbs = envfit(J.g.MDS ~ hbs, data=vars.envfit, na.rm=TRUE)
+ef.J.heart = envfit(J.g.MDS ~ heart, data=vars.envfit, na.rm=TRUE)
+ef.J.prot = envfit(J.g.MDS ~ prot.sum, data=vars.envfit, na.rm=TRUE)
+ef.J.meat = envfit(J.g.MDS ~ meat, data=vars.envfit, na.rm=TRUE)
+ef.J.poul = envfit(J.g.MDS ~ poultry, data=vars.envfit, na.rm=TRUE)
+                 
+ef.wUF.AB = envfit(wUF.g.ordu ~ AB, data=vars.envfit, na.rm=TRUE)
+ef.wUF.prot = envfit(wUF.g.ordu ~ prot.sum, data=vars.envfit, na.rm=TRUE)
+ef.wUF.meat = envfit(wUF.g.ordu ~ meat, data=vars.envfit, na.rm=TRUE)
+ef.wUF.poul = envfit(wUF.g.ordu ~ poultry, data=vars.envfit, na.rm=TRUE)
+
+#Figure S1
+postscript("FIGURES1.eps", width = 9, height = 3, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+layout(matrix(c(1,2,3), 1, 3, byrow = TRUE), widths=c(1,1,1), heights=c(1,1,1))
+plot(BC.g.MDS, type="n", main="Bray-Curtis", xlab="", ylab="")
+  points(BC.g.MDS, pch=21, cex=0.75, display="sites", col="black", bg=c("red","blue")[as.factor(Pheno.sm.g$gender)])
+  plot(ef.BC.AB, col="red")
+  plot(ef.BC.hbs, col="red")
+  plot(ef.BC.heart, col="red")
+  plot(ef.BC.prot, col="black")
+  plot(ef.BC.socY, col="black")
+  plot(ef.BC.socN, col="black")
+  plot(ef.BC.meat, col="black")
+  plot(ef.BC.poul, col="black")
+plot(J.g.MDS, type="n", main="Jaccard", xlab="", ylab="")
+  points(J.g.MDS, pch=21, cex=0.75, display="sites", col="black", bg=c("red","blue")[as.factor(Pheno.sm.g$gender)])
+  plot(ef.J.AB, col="red")
+  plot(ef.J.cohab, col="black")
+  plot(ef.J.socY, col="black")
+  plot(ef.J.socN, col="black")
+  plot(ef.J.hbs, col="black")
+  plot(ef.J.heart, col="black")
+  plot(ef.J.prot, col="black")
+  plot(ef.J.meat, col="black")
+  plot(ef.J.poul, col="black")
+plot(wUF.g.ordu, type="n", main="Weighted UniFrac", xlab="", ylab="", xlim=c(-0.03,0.03), ylim=c(-0.03,0.03))
+  points(wUF.g.ordu, pch=21, cex=0.75, display="sites", col="black", bg=c("red","blue")[as.factor(Pheno.sm.g$gender)])
+  plot(ef.wUF.AB, col="black")
+  plot(ef.wUF.prot, col="black")
+  plot(ef.wUF.meat, col="black")
+  plot(ef.wUF.poul, col="black")
+dev.off()
+```
+
+##Figure S2
+```{r}
+#Re-code variables to YN letters
+vars.g$AB = ifelse(vars.g$AB == 1, "Y", ifelse(vars.g$AB == 2, "N", vars.g$AB))
+vars.g$hbs11 = ifelse(vars.g$hbs11 == 1, "Y", ifelse(vars.g$hbs11 == 2, "N", vars.g$hbs11))
+
+#Figure S2ABCD
+postscript("FIGURES2a.eps", width = 6, height = 6, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+layout(matrix(c(1,2,3,4), 2, 2, byrow = TRUE), widths=c(1,1), heights=c(1,1))
+#Shannon
+boxplot(Met.g$shannon ~ vars.g$AB, ylab="Shannon's diversity", main="", xlab="Antibiotic use last 6mo")
+  stripchart(Met.g$shannon ~ vars.g$AB, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.25)
+boxplot(Met.g$shannon ~ vars.g$hbs11, main="", xlab="High blood sugar")
+  stripchart(Met.g$shannon ~ vars.g$hbs11, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.25)
+#Chao
+boxplot(Met.g$chao ~ vars.g$RU57, ylab="Chao's richness", main="", xlab="1957")
+  stripchart(Met.g$chao ~ vars.g$RU57, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.25)
+boxplot(Met.g$chao ~ vars.g$RU11, main="", xlab="2011")
+  stripchart(Met.g$chao ~ vars.g$RU11, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.25)
+dev.off()
+
+#Figure S2E
+postscript("FIGURES2b.eps", width = 3, height = 3, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+layout(matrix(c(1), 1, 1, byrow = TRUE), widths=c(1), heights=c(1))
+levelplot(Met.g$shannon ~ vars.g$poul*vars.g$meat, col.regions=function(x)rev(gray.colors(x)), xlab="Poultry (times per week)", ylab="Meat (times per week)", main="")
+dev.off()
+
+#Figure S2F
+postscript("FIGURES2c.eps", width = 3, height = 3, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+layout(matrix(c(1), 1, 1, byrow = TRUE), widths=c(1), heights=c(1))
+levelplot(Met.g$shannon ~ vars.g$poul*vars.g$pork, col.regions=function(x)rev(gray.colors(x)), xlab="Poultry (times per week)", ylab="Pork (times per week)", main="")
+dev.off()
+```
+
+##Figure S3
+```{r}
+#Calculate linear models
+shan.social.cohabY = glm(Met.g[vars.g$cohabYN == "Y",]$shannon ~ vars.g[vars.g$cohabYN == "Y",]$social.sum)
+shan.social.cohabN = glm(Met.g[vars.g$cohabYN == "N",]$shannon ~ vars.g[vars.g$cohabYN == "N",]$social.sum)
+chao.social.cohabY = glm(Met.g[vars.g$cohabYN == "Y",]$chao ~ vars.g[vars.g$cohabYN == "Y",]$social.sum)
+chao.social.cohabN = glm(Met.g[vars.g$cohabYN == "N",]$chao ~ vars.g[vars.g$cohabYN == "N",]$social.sum)
+
+#Figure S3
+postscript("FIGURES3.eps", width = 6, height = 6, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+layout(matrix(c(1,2,3,4), 2, 2, byrow = TRUE), widths=c(1,1), heights=c(1,1))
+
+plot(Met.g$shannon ~ vars.g$social.sum, pch=21, col="black", bg=c("red","blue")[vars.g$cohabYN], ylab="", main="", xlab="Social interactions / 4 weeks", cex=0.75)
+        abline(shan.social.cohabY, col="blue")
+        abline(shan.social.cohabN, col="red")
+#Chao
+plot(Met.g$chao ~ vars.g$social.sum, pch=21, col="black", bg=c("red","blue")[vars.g$cohabYN], ylab="", main="", xlab="Social interactions / 4 weeks", cex=0.75)
+        abline(chao.social.cohabY, col="blue")
+        abline(chao.social.cohabN, col="red")
+dev.off()
+```
+
+##Figure S4
+```{r}
+#Figure S4
+postscript("FIGURES4.eps", width = 9, height = 9, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+layout(matrix(c(1,2,3,4,5,6,7,8,9), 3, 3, byrow = TRUE), widths=c(1,1,1), heights=c(1,1,1))
+#BC
+boxplot(gp.se.gs.boxplot$BC ~ gp.se.gs.boxplot$group, main = "", ylab="Bray-Curtis distance", col=c("red","blue","white"), ylim=c(0.05,1))
+boxplot(match.BC.gp.se.gs~floor(vars.gp.se.gs$closeness), xlab="", ylab="", main="",  outpch=NA, ylim=c(0.05,1), col="purple")
+  stripchart(match.BC.gp.se.gs~floor(vars.gp.se.gs$closeness), col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.5)
+boxplot(match.BC.gp.se.gs~vars.gp.se.gs$closeness.group, col=c("blue", "blue", "blue", "red", "blue", "red"), xlab="", ylab="", main="",  outpch=NA, ylim=c(0.05,1))
+  stripchart(match.BC.gp.se.gs~vars.gp.se.gs$closeness.group, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.5)
+#J
+boxplot(gp.se.gs.boxplot$J ~ gp.se.gs.boxplot$group, main = "", ylab="Jaccard distance", col=c("red","blue","white"), ylim=c(0.1,1))
+boxplot(match.J.gp.se.gs~floor(vars.gp.se.gs$closeness), xlab="", ylab="", main="",  outpch=NA, ylim=c(0.1,1), col="purple")
+  stripchart(match.J.gp.se.gs~floor(vars.gp.se.gs$closeness), col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.5)
+boxplot(match.J.gp.se.gs~vars.gp.se.gs$closeness.group, col=c("blue", "blue", "blue", "red", "blue", "red"), xlab="", ylab="", main="",  outpch=NA, ylim=c(0.1,1))
+  stripchart(match.J.gp.se.gs~vars.gp.se.gs$closeness.group, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.5)
+#wUF
+boxplot(gp.se.gs.boxplot$wUF ~ gp.se.gs.boxplot$group, main = "", ylab="Weighted UniFrac distance", col=c("red","blue","white"), ylim=c(0.05,0.7))
+boxplot(match.wUF.gp.se.gs~floor(vars.gp.se.gs$closeness), xlab="", ylab="", main="",  outpch=NA, ylim=c(0.05,0.7), col="purple")
+  stripchart(match.wUF.gp.se.gs~floor(vars.gp.se.gs$closeness), col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.5)
+boxplot(match.wUF.gp.se.gs~vars.gp.se.gs$closeness.group, col=c("blue", "blue", "blue", "red", "blue", "red"), xlab="", ylab="", main="",  outpch=NA, ylim=c(0.05,0.7))
+  stripchart(match.wUF.gp.se.gs~vars.gp.se.gs$closeness.group, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.5)
+dev.off()
+```
+
+##Figure S5
+```{r}
+#Figure S5
+postscript("FIGURES5.eps", width = 3, height = 3, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+plot(match.uwUF.gp.se.gs ~ match.prot.gp.se.gs, bg=c(rep("red",94), rep("blue", 83)), col="black", pch=21, main = "", xlab="Euclidean distances of protein consumption", ylab = "Unweighted UniFrac distance", cex=0.5)
+  uwUF.spouse = lm(match.uwUF.gp.se.gs[vars.gp.se.gs$group == "spouse"] ~ match.prot.gp.se.gs[vars.gp.se.gs$group == "spouse"])
+    uwUF.sib = lm(match.uwUF.gp.se.gs[vars.gp.se.gs$group == "sib"] ~ match.prot.gp.se.gs[vars.gp.se.gs$group == "sib"])
+    uwUF.all = lm(match.uwUF.gp.se.gs ~ match.prot.gp.se.gs)    
+    abline(uwUF.spouse, col="red")
+    abline(uwUF.sib, col="blue")
+    abline(uwUF.all, col="black")
+dev.off()
+```
+
+##Figure S6
+```{r}
+#Figure S6A
+postscript("FIGURES6a.eps", width = 3, height = 3, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+boxplot(match.prot.gp.se.gs~vars.gp.se.gs$group, ylab="Euclidean distances of protein consumption", main="")
+dev.off()
+
+#Figure S6B
+postscript("FIGURES6b.eps", width = 3, height = 3, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+plot(table(vars.gp.se.gs$group,floor(vars.gp.se.gs$closeness)), ylab="Closeness", main="")
+dev.off()
 ```
