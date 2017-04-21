@@ -924,3 +924,10 @@ relatedness.gs.match = relatedness.gs[row.names(relatedness.gs) %in% names(match
 
 relatedness.gs.match = subset(relatedness.gs.match, row.names(relatedness.gs.match) %in% names(match.BC.gs))
 ```
+
+#Save environment
+Save the manipulated as an R environment for easy use in analysis.
+
+```{r}
+save.image("F:/Box Sync/Kim/WLS/R/Paper 1/WLS_environment_final.RData")
+```
