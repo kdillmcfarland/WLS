@@ -16,8 +16,8 @@ R markdown
 
 R scripts
   * Pairwise_adonis.R - Pairwise PERMANOVA (adonis) function to test within categorical variables with more than 2 levels
-  * simper_pretty.R - Function to calculate SIMPER for variables of interest
   * R_krusk.R	- Function to calculate Kruskal-Wallis for OTUs and variables identified in SIMPER analysis
+  * multiplot.R - Function to place 2 or more ggplot2 graphs in one figure
 
 python scripts
   * clean_repFasta_FAST.py - Renames sequences in representative sequence fasta file to OTU numbers (i.e. Otu0001, Otu0002, etc.)
