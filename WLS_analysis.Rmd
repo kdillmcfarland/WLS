@@ -1,0 +1,861 @@
+---
+title: "WLS_analysis"
+author: "Kim Dill-McFarland"
+date: "April 20, 2017"
+output:
+  html_document: 
+    toc: true
+    toc_float: true
+  pdf_document: default
+---
+#Load data
+##Packages
+```{r}
+#The vegan package provides tools for descriptive community ecology. It has most basic functions of diversity analysis, community ordination and dissimilarity analysis.
+#In general, this package is used for Bray-Curtis and Jaccard analyses.
+library(vegan)
+#The phyloseq package seeks to address issues with multiple microbiome analysis packages by providing a set of functions that internally manage the organizing, linking, storing, and analyzing of phylogenetic sequencing data. 
+#In general, this package is used for UniFrac analyses.
+library(phyloseq)
+#Graphing package used in phyloseq. To edit the default setting of a plot, you need to use functions in this package.
+library(PMCMR)
+#Graphing package used in phyloseq. To edit the default setting of a plot, you need to use functions in this package.
+library(ggplot2)
+#Venn diagrams
+library(gplots)
+```
+
+##Data
+Load environment from `WLS_data_manipulation.Rmd`
+```{r}
+load("WLS_environment_final.rdata")
+```
+
+#Gradutes-only
+##Beta-diversity
+Tests performed on the graduate samples to avoid possible interactions between spouses and siblings. First, check if the graduate subset is different from the other sample types to ensure the subset is a good representation of the overall data set. 
+```{r}
+#Test if the overall microbiota differs by groups (g, p, s, e). We do not expect significance as these groups are merely a means of ID different individuals in the dataset 
+#Permutational analysis of variance (PERMANOVA)
+adonis(OTU ~ Link, data=Met, method="bray", permuations=1000)
+adonis(OTU ~ Link, data=Met, method="jaccard", permuations=1000)
+adonis(wUF.dist ~ Link,  data=Met, permuations=1000)
+adonis(uwUF.dist ~ Link,  data=Met, permuations=1000)
+```
+
+There are no differences so we move forward with the graduate subset data set. We will run a number of PERMANOVA (`adonis`) tests of variables of interest. All tests are run on Bray-Curtis, Jaccard, weighted and unweighted UniFrac distance measures. For variables with missing data, the data is subset to only `complete.cases` to avoid NA errors in `adonis`.
+
+###Sex and age
+```{r}
+#Does sex/gender or age correlate to the gut microbiota?
+adonis(BC.dist.g ~ gender+age, data = vars.g, permutations=1000)
+adonis(J.dist.g ~ gender+age, data = vars.g, permutations=1000)
+adonis(wUF.dist.g ~ gender+age, data = vars.g, permutations=1000)
+adonis(uwUF.dist.g ~ gender+age, data = vars.g, permutations=1000)
+```
+
+Since sex is a significant determinant of the microbiota and can impact a number of other variables of interest, we test if our variables vary by sex.
+
+```{r}
+chisq.test(table(vars.g$gender, as.factor(vars.g$AB)))
+chisq.test(table(vars.g$RU57, vars.g$gender))
+chisq.test(table(vars.g$RU11, vars.g$gender))
+chisq.test(table(vars.g$iq, vars.g$gender))
+chisq.test(table(vars.g$yrs.edu, vars.g$gender))
+chisq.test(table(vars.g$cohabYN, vars.g$gender))
+chisq.test(table(vars.g$child.sum, vars.g$gender))
+chisq.test(table(vars.g$groom, vars.g$gender))
+chisq.test(table(vars.g$social.sum, vars.g$gender))
+chisq.test(table(vars.g$dog, vars.g$gender))
+chisq.test(table(vars.g$cat, vars.g$gender))
+chisq.test(table(vars.g$pet.other, vars.g$gender))
+chisq.test(table(vars.g$clean.house, vars.g$gender))
+chisq.test(table(vars.g$bmi, vars.g$gender))
+chisq.test(table(vars.g$srh11, vars.g$gender))
+chisq.test(table(as.factor(vars.g$hbp11), vars.g$gender))
+chisq.test(table(as.factor(vars.g$hbs11), vars.g$gender))
+chisq.test(table(as.factor(vars.g$heart11), vars.g$gender))
+chisq.test(table(as.factor(vars.g$arth11), vars.g$gender))
+chisq.test(table(as.factor(vars.g$cancer11), vars.g$gender))
+chisq.test(table(as.factor(vars.g$stroke11), vars.g$gender))
+chisq.test(table(as.factor(vars.g$IBS), vars.g$gender))
+chisq.test(table(vars.g$walk.ave, vars.g$gender))
+chisq.test(table(as.factor(vars.g$smokeYN), vars.g$gender))
+chisq.test(table(vars.g$meat, vars.g$gender))
+chisq.test(table(vars.g$poul, vars.g$gender))
+chisq.test(table(vars.g$pork, vars.g$gender))
+chisq.test(table(vars.g$sea, vars.g$gender))
+chisq.test(table(vars.g$prot.sum, vars.g$gender))
+chisq.test(table(vars.g$fruit.sum, vars.g$gender))
+chisq.test(table(vars.g$veg.sum, vars.g$gender))
+```
+
+And correct these P-values for multiple comparison testing.
+```{r}
+chi.list= c(0.8722,0.291,0.1907,0.2011,0.8032,0.0002174,0.05332,0.7207,0.9015,0.4515,0.167,0.9611,0.8052,0.3167,0.6383,5.47E-08,0.5732,0.2358,0.1249,0.362,0.4763,0.5982,0.02806,0.961,0.3057,0.8022,0.1672,0.4582,0.2996,0.3984,0.2245)
+
+p.adjust(chi.list, method="BH")
+```
+
+For the variables that do differ by sex, we will stratify (`strata`) the model by sex. These include
+
+* cohabYN
+* walk.ave
+
+###Antibiotics
+Does antibiotic use correlate to the gut microbiota?
+
+* AB = antibiotic use in the last 6 months, YN
+
+```{r Antibiotics}
+vars = data.frame(vars.g$AB)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ as.factor(AB), data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ as.factor(AB), data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ as.factor(AB), data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ as.factor(AB), data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+```
+
+###Rural vs. urban
+Does rural-urban upbringing or current residence correlate to the gut microbiota?
+
+* RU57 = OCF357 = Father's occupation in 1957
+* RU11 = hf017j1e = 1990 occupation code for graduates
+
+```{r Rural.urban}
+vars = data.frame(vars.g$RU57, vars.g$RU11)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ RU57+RU11, data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ RU57+RU11, data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ RU57+RU11, data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ RU57+RU11, data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+```
+
+###Education
+Does education or IQ correlate to the gut microbiota?
+
+* yrs.edu = hb103red = years of education
+* iq = IQ (Henmom-Nelson score)
+
+```{r Education.IQ}
+vars = data.frame(vars.g$yrs.edu, vars.g$iq)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ yrs.edu+iq, data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ yrs.edu+iq, data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ yrs.edu+iq, data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ yrs.edu+iq, data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+```
+
+###Human interaction
+Does human interaction correlate to the gut microbiota?
+
+* cohabYN = cohab = Cohabiting with spouse, YN (strata by sex)
+* child.sum = HD01701-06 = # of children cohabiting with graduate
+* groom = ha103re = Personal grooming score (0-10)
+* social.sum = jz023rer + jz024rer = # of social interactions with family and friends in the last 4 wks
+
+```{r Human.interaction}
+#Full model
+vars = data.frame(vars.g$cohabYN, vars.g$child.sum, vars.g$groom, vars.g$social.sum)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ cohabYN + child.sum + groom + social.sum + cohabYN:social.sum, 
+       data = vars.g[complete.cases(vars),], strata = vars.g[complete.cases(vars),]$gender,
+       permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ cohabYN + child.sum + groom + social.sum + cohabYN:social.sum, 
+       data = vars.g[complete.cases(vars),], strata = vars.g[complete.cases(vars),]$gender,
+       permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ cohabYN + child.sum + groom + social.sum + cohabYN:social.sum, 
+       data = vars.g[complete.cases(vars),], strata = vars.g[complete.cases(vars),]$gender,
+       permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ cohabYN + child.sum + groom + social.sum + cohabYN:social.sum, 
+       data = vars.g[complete.cases(vars),], strata = vars.g[complete.cases(vars),]$gender,
+       permuations=1000)
+
+#CohabYN alone
+vars = data.frame(vars.g$cohabYN)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ cohabYN, 
+       data = vars.g[complete.cases(vars),], strata = vars.g[complete.cases(vars),]$gender,
+       permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ cohabYN, 
+       data = vars.g[complete.cases(vars),], strata = vars.g[complete.cases(vars),]$gender,
+       permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ cohabYN, 
+       data = vars.g[complete.cases(vars),], strata = vars.g[complete.cases(vars),]$gender,
+       permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ cohabYN, 
+       data = vars.g[complete.cases(vars),], strata = vars.g[complete.cases(vars),]$gender,
+       permuations=1000)
+
+#Socialness alone
+##Within cohabiting persons
+vars = data.frame(vars.g$social.sum)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "Y",]), row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "Y",])]
+       ~ social.sum, 
+       data = vars.g[complete.cases(vars) & vars.g$cohabYN == "Y",], permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "Y",]), row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "Y",])]
+       ~ social.sum, 
+       data = vars.g[complete.cases(vars) & vars.g$cohabYN == "Y",], permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "Y",]), row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "Y",])]
+       ~ social.sum, 
+       data = vars.g[complete.cases(vars) & vars.g$cohabYN == "Y",], permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "Y",]), row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "Y",])]
+       ~ social.sum, 
+       data = vars.g[complete.cases(vars) & vars.g$cohabYN == "Y",], permuations=1000)
+
+##Within non-cohabiting persons
+vars = data.frame(vars.g$social.sum)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "N",]), row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "N",])]
+       ~ social.sum, 
+       data = vars.g[complete.cases(vars) & vars.g$cohabYN == "N",], permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "N",]), row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "N",])]
+       ~ social.sum, 
+       data = vars.g[complete.cases(vars) & vars.g$cohabYN == "N",], permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "N",]), row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "N",])]
+       ~ social.sum, 
+       data = vars.g[complete.cases(vars) & vars.g$cohabYN == "N",], permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "N",]), row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "N",])]
+       ~ social.sum, 
+       data = vars.g[complete.cases(vars) & vars.g$cohabYN == "N",], permuations=1000)
+```
+
+###Home environment
+Does the home environment correlate to the gut microbiota?
+
+* dog = dog in house
+* cat = cat in house
+* pet.other = Other pet (bird, reptile, fish) in house
+* clean.house = ha114re = Residence cleanliness score (1-10)
+
+```{r Home.environment}
+vars = data.frame(vars.g$dog, vars.g$cat, vars.g$pet.other, vars.g$clean.house)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ dog+cat+pet.other+clean.house, data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ dog+cat+pet.other+clean.house, data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ dog+cat+pet.other+clean.house, data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ dog+cat+pet.other+clean.house, data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+```
+
+###Health
+Does health correlate to the gut microbiota?
+
+* bmi = body mass index based on height and weight
+* srh11 = Self-reported health score (1-5)
+* walk.ave = (HX472RE+HX473RE)/2 = Average walking speed (sec) (strate by sex)
+* hbs11 = High-blood sugar, YN
+* hbp11 = High-blood pressure, YN
+* heart11 = Heart disease, YN
+* arth11 = Arthritis, YN
+* cancer11 = Cancer, YN
+* stroke11 = Stroke, YN
+* IBS = irritable bowel syndrome, YN
+
+```{r Health}
+#overall health
+vars = data.frame(vars.g$bmi, vars.g$srh11, vars.g$walk.ave)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ bmi+srh11+walk.ave, data = vars.g[complete.cases(vars),], 
+       strata = vars.g[complete.cases(vars),]$gender,
+       permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ bmi+srh11+walk.ave, data = vars.g[complete.cases(vars),], 
+       strata = vars.g[complete.cases(vars),]$gender,
+       permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ bmi+srh11+walk.ave, data = vars.g[complete.cases(vars),], 
+       strata = vars.g[complete.cases(vars),]$gender,
+       permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ bmi+srh11+walk.ave, data = vars.g[complete.cases(vars),], 
+       strata = vars.g[complete.cases(vars),]$gender,
+       permuations=1000)
+
+#Specific diseases
+vars = data.frame(vars.g$hbs11, vars.g$hbp11, vars.g$heart11, vars.g$arth11, vars.g$cancer11, vars.g$stroke11, vars.g$IBS)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ as.factor(hbs11) + as.factor(hbp11) + as.factor(heart11) + as.factor(arth11) + as.factor(cancer11) + as.factor(stroke11) + as.factor(IBS),
+       data = vars.g[complete.cases(vars),], permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ as.factor(hbs11) + as.factor(hbp11) + as.factor(heart11) + as.factor(arth11) + as.factor(cancer11) + as.factor(stroke11) + as.factor(IBS),
+       data = vars.g[complete.cases(vars),], permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ as.factor(hbs11) + as.factor(hbp11) + as.factor(heart11) + as.factor(arth11) + as.factor(cancer11) + as.factor(stroke11) + as.factor(IBS),
+       data = vars.g[complete.cases(vars),], permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ as.factor(hbs11) + as.factor(hbp11) + as.factor(heart11) + as.factor(arth11) + as.factor(cancer11) + as.factor(stroke11) + as.factor(IBS),
+       data = vars.g[complete.cases(vars),], permuations=1000)
+```
+
+###Smoking
+Does smoking impact the microbiota?
+
+* smokeYN = jx013rec = currrently a smoker, YN
+
+```{r Smoking}
+vars = data.frame(vars.g$smokeYN)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ as.factor(smokeYN), data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ as.factor(smokeYN), data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ as.factor(smokeYN), data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ as.factor(smokeYN), data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+```
+
+###Diet
+Does diet impact the microbiota?
+
+* prot.sum = Times consume protein / wk
+* fruit.sum = # different fruits consume / week
+* veg.sum = # different vegetables consume  / week
+* meat = Times consume (red) meat / week
+* poul = Times consume poultry / week
+* pork = Times consume pork / week
+* sea = Times consume seafood / week
+
+```{r Diet}
+#Protein, veg and fruits
+vars = data.frame(vars.g$prot.sum, vars.g$fruit.sum, vars.g$veg.sum)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ prot.sum + fruit.sum + veg.sum, 
+       data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ prot.sum + fruit.sum + veg.sum, 
+       data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ prot.sum + fruit.sum + veg.sum, 
+       data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ prot.sum + fruit.sum + veg.sum, 
+       data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+
+#Specific proteins
+vars = data.frame(vars.g$meat, vars.g$poul, vars.g$pork, vars.g$sea)
+adonis(BC.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ meat+poul+pork+sea+meat:poul,  
+       data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(J.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ meat+poul+pork+sea+meat:poul, 
+       data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(wUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ meat+poul+pork+sea+meat:poul, 
+       data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[complete.cases(vars),])]
+       ~ meat+poul+pork+sea+meat:poul, 
+       data = vars.g[complete.cases(vars),], 
+       permuations=1000)
+```
+
+###FDR-correction
+Correct P-values for beta-diversity tests across all graduates for multiple comparison testing.
+
+```{r FDR.corrections.g}
+BC.list = c(0.000999,0.346653,0.002,0.726,0.17,0.277,0.297,0.125,0.551,0.517,0.623,0.003,0.026,0.061,0.019,0.902,0.792,0.678,0.658,0.056,0.275,0.679,0.007,0.397,0.007,0.915,0.649,0.913,0.19,0.351,0.011,0.674,0.045,0.413,0.092,0.067,0.107,0.004)
+J.list = c(0.000999,0.323676,0.002,0.652,0.239,0.361,0.355,0.149,0.533,0.482,0.607,0.006,0.019,0.057,0.007,0.916,0.814,0.609,0.684,0.048,0.281,0.756,0.01,0.398,0.019,0.896,0.755,0.942,0.17,0.293,0.008,0.706,0.032,0.408,0.169,0.059,0.085,0.008)
+wUF.list = c(0.000999,0.803197,0.005,0.82,0.239,0.525,0.369,0.14,0.553,0.628,0.567,0.023,0.045,0.262,0.046,0.83,0.574,0.873,0.691,0.272,0.471,0.808,0.021,0.592,0.053,0.959,0.477,0.779,0.302,0.563,0.006,0.19,0.154,0.047,0.09,0.028,0.368,0.006)
+uwUF.list = c(0.000999,0.888112,0.001,0.863,0.032,0.142,0.738,0.212,0.108,0.541,0.273,0.001,0.046,0.066,0.005,0.931,0.806,0.218,0.505,0.053,0.376,0.272,0.003,0.272,0.009,0.502,0.87,0.815,0.342,0.418,0.067,0.664,0.033,0.411,0.149,0.091,0.19,0.004)
+
+p.adjust(BC.list, method="BH")
+p.adjust(J.list, method="BH")
+p.adjust(wUF.list, method="BH")
+p.adjust(uwUF.list, method="BH")
+```
+
+##Alpha-diversity
+Tests performed on the graduate samples to avoid possible interactions between spouses and siblings. First, check if the graduate subset is different from the other sample types to ensure the subset is a good representation of the overall data set.
+
+```{r}
+summary(aov(shannon  ~ Link, data=Met))
+summary(aov((1/simpson) ~ Link, data=Met))
+summary(aov(chao  ~ Link, data=Met))
+summary(aov(ace  ~ Link, data=Met))
+```
+
+There are no differences so we move forward with the graduate subset data set. We will run a number of ANOVA (`aov`) tests of variables of interest similar to those run on beta-diversity. All tests are run on the Shannon's diversity index and Chao richness estimate. For more information on variables, see the corresponding beta-diversity test.
+
+###Sex and age
+
+```{r Basic}
+summary(aov(Met.g$shannon  ~ gender+age, data = vars.g))
+summary(aov(Met.g$chao  ~ gender+age, data = vars.g))
+```
+
+###Antibiotics
+
+```{r Antibiotics}
+summary(aov(Met.g$shannon  ~ as.factor(AB), data = vars.g))
+summary(aov(Met.g$chao  ~ as.factor(AB), data = vars.g))
+```
+
+###Rural vs. urban
+
+```{r Rural.urban}
+summary(aov(Met.g$shannon ~ RU57*RU15, data = vars.g))
+summary(aov(Met.g$chao ~ RU57*RU15, data = vars.g))
+```
+
+###Education
+
+```{r Education.IQ}
+summary(aov(Met.g$shannon ~ yrs.edu+iq, data = vars.g))
+summary(aov(Met.g$chao ~ yrs.edu+iq, data = vars.g))
+```
+
+###Human interaction
+
+```{r Human.interaction}
+summary(aov(Met.g$shannon ~ cohabYN + child.sum + groom + social.sum + cohabYN:social.sum, data = vars.g))
+summary(aov(Met.g$chao ~ cohabYN + child.sum + groom + social.sum + cohabYN:social.sum, data = vars.g))
+
+summary(aov(Met.g$shannon ~ cohabYN, data = vars.g))
+summary(aov(Met.g$chao ~ cohabYN, data = vars.g))
+
+summary(aov(Met.g[vars.g$cohabYN == "Y",]$shannon ~ social.sum, data = vars.g[vars.g$cohabYN == "Y",]))
+summary(aov(Met.g[vars.g$cohabYN == "Y",]$chao ~ social.sum, data = vars.g[vars.g$cohabYN == "Y",]))
+
+summary(aov(Met.g[vars.g$cohabYN == "N",]$shannon ~ social.sum, data = vars.g[vars.g$cohabYN == "N",]))
+summary(aov(Met.g[vars.g$cohabYN == "N",]$chao ~ social.sum, data = vars.g[vars.g$cohabYN == "N",]))
+```
+
+###Home environment
+
+```{r Home.environment}
+summary(aov(Met.g$shannon ~ dog + cat + pet.other + clean.house, data = vars.g))
+summary(aov(Met.g$chao ~ dog + cat + pet.other + clean.house, data = vars.g))
+```
+
+###Health 
+
+```{r Health}
+summary(aov(Met.g$shannon ~ bmi+srh11+walk.ave, data = vars.g))
+summary(aov(Met.g$chao ~ bmi+srh11+walk.ave, data = vars.g))
+
+summary(aov(Met.g$shannon ~ as.factor(hbs11)+ as.factor(hbp11)+ as.factor(heart11)+ as.factor(arth11)+ as.factor(cancer11)+ as.factor(stroke11)+ as.factor(IBS), data = vars.g))
+summary(aov(Met.g$chao ~ as.factor(hbs11)+ as.factor(hbp11)+ as.factor(heart11)+ as.factor(arth11)+ as.factor(cancer11)+ as.factor(stroke11)+ as.factor(IBS), data = vars.g))
+```
+
+###Smoking
+
+```{r Smoking}
+summary(aov(Met.g$shannon ~ as.factor(smokeYN), data = vars.g))
+summary(aov(Met.g$chao ~ as.factor(smokeYN), data = vars.g))
+```
+
+###Diet
+
+```{r Diet}
+summary(aov(Met.g$shannon ~ prot.sum + fruit.sum + veg.sum, data = vars.g))
+summary(aov(Met.g$chao ~ prot.sum + fruit.sum + veg.sum, data = vars.g))
+
+summary(aov(Met.g$shannon ~ meat+poul+pork+sea +meat:poul +poul:pork, data = vars.g))
+summary(aov(Met.g$chao ~ meat+poul+pork+sea +meat:poul, data = vars.g))
+```
+
+###FDR-correction
+```{r FDR.corrections}
+shannon.list = c(0.153,0.798,0.0055,0.2075,0.1355,0.0919,0.218,0.8,0.18839,0.6775,0.4584,0.51954,0.00797,0.00516,0.222,0.0995,0.71,0.828,0.632,0.355,0.0829,0.0639,0.5078,0.0012,0.1831,0.7463,0.7133,0.4823,0.572,0.6505,0.675,0.5546,0.3442,0.0658,0.2743,0.5594,0.4588,0.8914,1.77E-06,0.0141)
+
+chao.list = c(0.0188,0.8906,0.0191,0.122275,0.000802,0.038202,0.0143,0.3284,0.132911,0.205808,0.811443,0.685167,0.000852,0.00531,0.289,0.0529,0.246,0.42,0.535,0.832,0.0353,0.2432,0.1356,0.0422,0.3791,0.9216,0.9683,0.172,0.3964,0.9721,0.163,0.688,0.15,0.248,0.8636,0.8794,0.795,0.2378,0.0323,NA)
+
+p.adjust(shannon.list, method="BH")
+p.adjust(chao.list, method="BH")
+```
+
+#Spouses and siblings
+##Beta-diversity
+Are spouses or siblings more similar? Compare beta-diveristy (Bray-Curtis, Jaccard, weighted and unweighted UniFrac) of spouses, siblings, and unrelated pairs. The unrelated group is defined as pairs that were not siblings, spouses, or in-laws within the dataset. The unrelated group was subsampled to 100 pairs with sex ratios equivalent to the sibling dataset (57% same sex pairs) and P-values were averaged across 1000 iterative subsamples 
+
+Since sample sizes and variance are unequal, compare groups by Kruskal-Wallis. Ties exist (values occur more than once in a group) so use Chi-squared method to correct within pairwise comparisons.
+
+```{r}
+KW.subsample.fxn = function(rep.number)
+{library(PMCMR)
+  repeat{
+  BC.MF.sample = match.BC.MF[sample(1:length(match.BC.MF), 43,	replace=FALSE)]
+  BC.MMFF.sample = match.BC.MMFF[sample(1:length(match.BC.MMFF), 57,	replace=FALSE)]
+  J.MF.sample = match.J.MF[sample(1:length(match.J.MF), 43,	replace=FALSE)]
+  J.MMFF.sample = match.J.MMFF[sample(1:length(match.J.MMFF), 57,	replace=FALSE)]
+  wUF.MF.sample = match.wUF.MF[sample(1:length(match.wUF.MF), 43,	replace=FALSE)]
+  wUF.MMFF.sample = match.wUF.MMFF[sample(1:length(match.wUF.MMFF), 57,	replace=FALSE)]
+  uwUF.MF.sample = match.uwUF.MF[sample(1:length(match.uwUF.MF), 43,	replace=FALSE)]
+  uwUF.MMFF.sample = match.uwUF.MMFF[sample(1:length(match.uwUF.MMFF), 57,	replace=FALSE)]
+
+  dist.sample = data.frame(BC=c(match.BC.gp.se, match.BC.gs, BC.MF.sample, BC.MMFF.sample),
+                   J=c(match.J.gp.se, match.J.gs, J.MF.sample, J.MMFF.sample),
+                   wUF=c(match.wUF.gp.se, match.wUF.gs, wUF.MF.sample, wUF.MMFF.sample),
+                   uwUF=c(match.uwUF.gp.se, match.uwUF.gs, uwUF.MF.sample, uwUF.MMFF.sample),
+                   comp=c(rep(times=(length(match.BC.gp.se)), "1.gpse"), 
+                               rep(times=(length(match.BC.gs)), "2.gs"),
+                               rep(times=100, "3.other")))
+#Bray-Curtis
+BC.kw = kruskal.test(dist.sample$BC ~ dist.sample$comp)
+posthoc.BC.kw.BH = p.adjust(posthoc.kruskal.nemenyi.test(x=dist.sample$BC, g=dist.sample$comp, dist="Chisq")$p.value, method="BH")
+#Jaccard
+J.kw = kruskal.test(dist.sample$J ~ dist.sample$comp)
+posthoc.J.kw.BH = p.adjust(posthoc.kruskal.nemenyi.test(x=dist.sample$J, g=dist.sample$comp, dist="Chisq")$p.value, method="BH")
+#wUF
+wUF.kw = kruskal.test(dist.sample$wUF ~ dist.sample$comp)
+posthoc.wUF.kw.BH = p.adjust(posthoc.kruskal.nemenyi.test(x=dist.sample$wUF, g=dist.sample$comp, dist="Chisq")$p.value, method="BH")
+#uwUF
+uwUF.kw = kruskal.test(dist.sample$uwUF ~ dist.sample$comp)
+posthoc.uwUF.kw.BH = p.adjust(posthoc.kruskal.nemenyi.test(x=dist.sample$uwUF, g=dist.sample$comp, dist="Chisq")$p.value, method="BH")
+
+#Print to table
+kw.results = data.frame(
+  BC = c(BC.MF.sample, BC.MMFF.sample, BC.kw$p.value, posthoc.BC.kw.BH),
+  J = c(J.MF.sample, J.MMFF.sample, J.kw$p.value, posthoc.J.kw.BH),
+  wUF = c(wUF.MF.sample, wUF.MMFF.sample, wUF.kw$p.value, posthoc.wUF.kw.BH),
+  uwUF = c(uwUF.MF.sample, uwUF.MMFF.sample, uwUF.kw$p.value, posthoc.uwUF.kw.BH),
+  label = c(rep("dist",100), "KW.P", "Sp.Sib", "Sp.other", "NA", "Sib.other"))
+
+write.table(kw.results, file="KW.results.csv", append=TRUE, sep=",", col.names=FALSE)
+KW.results.final = read.table("KW.results.csv", sep=",")
+
+if(nrow(KW.results.final) >= 105*rep.number){break}
+  }}
+
+KW.subsample.fxn(1000)
+
+#Curating results
+KW.results.final = read.table("KW.results.csv", sep=",")
+colnames(KW.results.final) = c("rep", "BC", "J", "wUF", "uwUF", "label")
+
+#Average P-values
+KW.P.ave = data.frame(
+  KW.P = colMeans(KW.results.final[KW.results.final$label == "KW.P" & complete.cases(KW.results.final),2:5]),
+  Sp.Sib = colMeans(KW.results.final[KW.results.final$label == "Sp.Sib" & complete.cases(KW.results.final),2:5]),
+  Sp.other = colMeans(KW.results.final[KW.results.final$label == "Sp.other" & complete.cases(KW.results.final),2:5]),
+  Sib.other = colMeans(KW.results.final[KW.results.final$label == "Sib.other"& complete.cases(KW.results.final),2:5])
+)
+
+write.table(KW.P.ave, file="KW.P.ave.csv", append=TRUE, sep=",", col.names=TRUE)
+```
+
+Use linear models to assess if beta-diversity among spouse and/or sibling pairs is explained by variables of interest. Variables found to impact the overall microbiota among graduates (PERMANOVA P < 0.1, Dataset S2), those with considerably more variation in the full dataset (age), and those specific to sibling/spouse relationships (kinship, years cohabitating, closeness) were tested.
+
+Variables specified as `diff` are the difference between values for individuals within a pair. For example, a spousal pair of person 1 = 70 yrs old and person 2 = 75 yrs old would have an `age.diff` of 5 yrs. In this way, we are testing if pairs being discordant in one or more variables causes their microbiota to be more or less similar.
+
+###Variables in spouses and siblings
+####Education
+```{r}
+#Years of education
+summary(lm(match.BC.gp.se.gs ~ vars.gp.se.gs$yrs.edu.diff))
+summary(lm(match.J.gp.se.gs ~ vars.gp.se.gs$yrs.edu.diff))
+summary(lm(match.wUF.gp.se.gs ~ vars.gp.se.gs$yrs.edu.diff))
+summary(lm(match.uwUF.gp.se.gs ~ vars.gp.se.gs$yrs.edu.diff))
+
+#IQ
+summary(lm(match.BC.gp.se.gs ~ vars.gp.se.gs$iq.diff))
+summary(lm(match.J.gp.se.gs ~ vars.gp.se.gs$iq.diff))
+summary(lm(match.wUF.gp.se.gs ~ vars.gp.se.gs$iq.diff))
+summary(lm(match.uwUF.gp.se.gs ~ vars.gp.se.gs$iq.diff))
+```
+
+####Closeness
+Self-reported relationship closeness.
+
+* 1 = not at all
+* 2 = not very
+* 3 = somewhat
+* 4 = very
+
+If individuals within a pair did not give the same answer, the lower of the two was used.
+
+```{r}
+summary(aov(match.BC.gp.se.gs ~ as.factor(floor(vars.gp.se.gs$closeness))))
+summary(aov(match.J.gp.se.gs ~ as.factor(floor(vars.gp.se.gs$closeness))))
+summary(aov(match.wUF.gp.se.gs ~ as.factor(floor(vars.gp.se.gs$closeness))))
+summary(aov(match.uwUF.gp.se.gs ~ as.factor(floor(vars.gp.se.gs$closeness))))
+
+#Pairwise between closeness levels
+pairwise.t.test(match.BC.gp.se.gs, as.factor(floor(vars.gp.se.gs$closeness)), p.adj = "BH")
+pairwise.t.test(match.J.gp.se.gs, as.factor(floor(vars.gp.se.gs$closeness)), p.adj = "BH")
+pairwise.t.test(match.wUF.gp.se.gs, as.factor(floor(vars.gp.se.gs$closeness)), p.adj = "BH")
+pairwise.t.test(match.uwUF.gp.se.gs, as.factor(floor(vars.gp.se.gs$closeness)), p.adj = "BH")
+
+##Pairwise between closeness levels and spouses vs. siblings
+vars.gp.se.gs$close.group = paste(as.factor(floor(vars.gp.se.gs$closeness)), vars.gp.se.gs$group, sep=".")
+
+pairwise.t.test(match.BC.gp.se.gs, vars.gp.se.gs$close.group, p.adj = "BH")
+pairwise.t.test(match.J.gp.se.gs, vars.gp.se.gs$close.group, p.adj = "BH")
+pairwise.t.test(match.wUF.gp.se.gs, vars.gp.se.gs$close.group, p.adj = "BH")
+pairwise.t.test(match.uwUF.gp.se.gs, vars.gp.se.gs$close.group, p.adj = "BH")
+```
+
+####Health
+```{r}
+#Heart disease
+summary(aov(match.BC.gp.se.gs ~ as.factor(vars.gp.se.gs$heart.diff.cat)))
+summary(aov(match.J.gp.se.gs ~ as.factor(vars.gp.se.gs$heart.diff.cat)))
+summary(aov(match.wUF.gp.se.gs ~ as.factor(vars.gp.se.gs$heart.diff.cat)))
+summary(aov(match.uwUF.gp.se.gs ~ as.factor(vars.gp.se.gs$heart.diff.cat)))
+
+#High blood sugar
+summary(aov(match.BC.gp.se.gs ~ as.factor(vars.gp.se.gs$hbs.diff.cat)))
+summary(aov(match.J.gp.se.gs ~ as.factor(vars.gp.se.gs$hbs.diff.cat)))
+summary(aov(match.wUF.gp.se.gs ~ as.factor(vars.gp.se.gs$hbs.diff.cat)))
+summary(aov(match.uwUF.gp.se.gs ~ as.factor(vars.gp.se.gs$hbs.diff.cat)))
+```
+
+####Diet
+```{r}
+#Distance in protein consumption
+summary(lm(match.BC.gp.se.gs ~ match.prot.gp.se.gs))
+summary(lm(match.J.gp.se.gs ~ match.prot.gp.se.gs))
+summary(lm(match.wUF.gp.se.gs ~ match.prot.gp.se.gs))
+summary(lm(match.uwUF.gp.se.gs ~ match.prot.gp.se.gs))
+summary(lm(match.uwUF.gp.se.gs ~ match.prot.gp.se.gs))
+
+#Specific protein sources
+summary(lm(match.BC.gp.se.gs ~  vars.gp.se.gs$meat.diff*vars.gp.se.gs$poul.diff))
+summary(lm(match.J.gp.se.gs ~  vars.gp.se.gs$meat.diff*vars.gp.se.gs$poul.diff))
+summary(lm(match.wUF.gp.se.gs ~  vars.gp.se.gs$meat.diff*vars.gp.se.gs$poul.diff))
+summary(lm(match.uwUF.gp.se.gs ~  vars.gp.se.gs$meat.diff*vars.gp.se.gs$poul.diff))
+```
+
+
+###Variables only in spouses
+####Rural vs. urban
+Not tested for siblings as all pairs resided together as children
+```{r}
+summary(aov(match.BC.gp.se ~ vars.gp.se.all$RU.diff.cat))
+summary(aov(match.J.gp.se ~ vars.gp.se.all$RU.diff.cat))
+summary(aov(match.wUF.gp.se ~ vars.gp.se.all$RU.diff.cat))
+summary(aov(match.uwUF.gp.se ~ vars.gp.se.all$RU.diff.cat))
+```
+
+####Years cohabiting
+```{r}
+summary(lm(match.BC.gp.se ~ vars.gp.se.all$yrs.cohab.marr))
+summary(lm(match.J.gp.se ~ vars.gp.se.all$yrs.cohab.marr))
+summary(lm(match.wUF.gp.se ~ vars.gp.se.all$yrs.cohab.marr))
+summary(lm(match.uwUF.gp.se ~ vars.gp.se.all$yrs.cohab.marr))
+```
+
+####Closeness
+Test if closeness results hold true across just spouses
+```{r}
+summary(lm(match.BC.gp.se ~ as.factor(floor(vars.gp.se.all$closeness))))
+summary(lm(match.J.gp.se ~ as.factor(floor(vars.gp.se.all$closeness))))
+summary(lm(match.wUF.gp.se ~ as.factor(floor(vars.gp.se.all$closeness))))
+summary(lm(match.uwUF.gp.se ~ as.factor(floor(vars.gp.se.all$closeness))))
+```
+
+###Variables only in siblings
+####Sex
+Not tested for spouses because all spousal pairs were male-female
+```{r}
+summary(aov(match.BC.gs ~ as.factor(vars.gs.all$gender.diff.cat)))
+summary(aov(match.J.gs ~ as.factor(vars.gs.all$gender.diff.cat)))
+summary(aov(match.wUF.gs ~ as.factor(vars.gs.all$gender.diff.cat)))
+summary(aov(match.uwUF.gs ~ as.factor(vars.gs.all$gender.diff.cat)))
+```
+
+####Genetics
+Genetic relatedness defined by a kinship score.
+```{r}
+#Subset data to those with kinship scores available
+match.BC.gs.relate = subset(match.BC.gs, names(match.BC.gs) %in% row.names(relatedness.gs.match))
+match.J.gs.relate = subset(match.J.gs, names(match.J.gs) %in% row.names(relatedness.gs.match))
+match.wUF.gs.relate = subset(match.wUF.gs, names(match.wUF.gs) %in% row.names(relatedness.gs.match))
+match.uwUF.gs.relate = subset(match.uwUF.gs, names(match.uwUF.gs) %in% row.names(relatedness.gs.match))
+
+summary(aov(match.BC.gs.relate ~ relatedness.gs.match$kinship))
+summary(aov(match.J.gs.relate ~ relatedness.gs.match$kinship))
+summary(aov(match.wUF.gs.relate ~ relatedness.gs.match$kinship))
+summary(aov(match.uwUF.gs.relate ~ relatedness.gs.match$kinship))
+```
+
+####Rural vs. urban
+Not tested for spouses as all resided together at time of sampling.
+```{r}
+summary(aov(match.BC.gs ~ as.factor(vars.gs.all$RU11.diff)))
+summary(aov(match.J.gs ~ as.factor(vars.gs.all$RU11.diff)))
+summary(aov(match.wUF.gs ~ as.factor(vars.gs.all$RU11.diff)))
+summary(aov(match.uwUF.gs ~ as.factor(vars.gs.all$RU11.diff)))
+```
+
+####CohabYN
+Cohabiting with a spouse or not
+```{r}
+summary(aov(match.BC.gs ~ as.factor(vars.gs.all$cohab.diff.cat)))
+summary(aov(match.J.gs ~ as.factor(vars.gs.all$cohab.diff.cat)))
+summary(aov(match.wUF.gs ~ as.factor(vars.gs.all$cohab.diff.cat)))
+summary(aov(match.uwUF.gs ~ as.factor(vars.gs.all$cohab.diff.cat)))
+```
+
+####Socialness
+```{r}
+summary(lm(match.BC.gs ~ vars.gs.all$social.sum.diff))
+summary(lm(match.J.gs ~ vars.gs.all$social.sum.diff))
+summary(lm(match.wUF.gs ~ vars.gs.all$social.sum.diff))
+summary(lm(match.uwUF.gs ~ vars.gs.all$social.sum.diff))
+```
+
+####Closeness
+Test if closeness results hold true across just siblings
+```{r}
+summary(aov(match.BC.gs ~ as.factor(floor(vars.gs.all$closeness.ave))))
+summary(aov(match.J.gs ~ as.factor(floor(vars.gs.all$closeness.ave))))
+summary(aov(match.wUF.gs ~ as.factor(floor(vars.gs.all$closeness.ave))))
+summary(aov(match.uwUF.gs ~ as.factor(floor(vars.gs.all$closeness.ave))))
+```
+
+###FDR-correction
+```{r}
+BC.sib.spouse.list = c(0.554,0.257,0.869,0.514,0.271,0.0626,0.118,0.0319,0.544,0.272,0.194,0.0148,0.272,0.5318,0.7282,0.0318)
+J.sib.spouse.list = c(0.491,0.219,0.871,0.414,0.254,0.0533,0.155,0.0305,0.519,0.219,0.159,0.0179,0.301,0.5381,0.7658,0.0428)
+wUF.sib.spouse.list = c(0.338,0.657,0.901,0.829,0.832,0.0717,0.176,0.0562,0.962,0.754,0.147,0.052,0.672,0.6297,0.3804,0.0358)
+uwUF.sib.spouse.list = c(0.361,0.0512,0.609,0.911,0.427,0.177,0.61,0.0266,0.731,0.00405,0.424,0.106,0.0119,0.813,0.302,0.161)
+
+p.adjust(BC.sib.spouse.list, method="BH")
+p.adjust(J.sib.spouse.list, method="BH")
+p.adjust(wUF.sib.spouse.list, method="BH")
+p.adjust(uwUF.sib.spouse.list, method="BH")
+```
+
+##Interactions
+Do variables that explain beta-diversity differ between spouse and sibling groups?
+```{r}
+#AB
+chisq.test(table(vars.gp.se.gs$group, as.factor(vars.gp.se.gs$AB.diff.cat)))
+#Closeness
+chisq.test(table(vars.gp.se.gs$group, as.factor(floor(vars.gp.se.gs$closeness))))
+#heart.diff
+chisq.test(table(vars.gp.se.gs$group, as.factor(vars.gp.se.gs$heart.diff.cat)))
+#hbs.diff
+chisq.test(table(vars.gp.se.gs$group, as.factor(vars.gp.se.gs$hbs.diff.cat)))
+#dist.prot
+summary(aov(match.prot.gp.se.gs ~ vars.gp.se.gs$group))
+#meat.diff:poul.diff
+summary(aov(vars.gp.se.gs$meat.diff ~ vars.gp.se.gs$group))
+summary(aov(vars.gp.se.gs$poul.diff ~ vars.gp.se.gs$group))
+```
+
+FDR-correction
+```{r}
+p.adjust(c(0.1921,7.14E-13,0.7974,1,8.99E-10,1.99E-07,1.61E-05), method="BH")
+```
+
+It appears that spouses tend to have closer relationships and more similar diets than siblings.
+```{r}
+#Plots
+par(mfrow = c(1, 2))
+plot(table(vars.gp.se.gs$group, as.factor(floor(vars.gp.se.gs$closeness))), ylab="closeness")
+boxplot(match.prot.gp.se.gs ~ vars.gp.se.gs$group, ylab="dist.prot")
+```
+
+#OTUs and health
+OTUs commonly shared between siblings or spouses (> 50% of pairs) and rare in the overall dataset (< 70% of samples, < 49% of unrelated pairs) were correlated to health outcomes in the whole dataset by Kruskal-Wallis with the Benjamini-Hochberg correction for multiple comparisons.
+
+We will co-op the `kruskal.pretty` function to run these tests by creating a fake SIMPER output. We will also need to load our unaltered `.cons.taxonomy` table from mothur as the function cannot take the altered version we have used those far, `Tax`.
+
+```{r}
+#Fake SIMPER output to get OTU list for health analyses
+fake.simper = data.frame(
+  X = c(1:22),
+  Comparison = rep("1_2", 22),
+  SIMPER = rep(0.001, 22),
+  OTU = c("Otu00027","Otu00035","Otu00043","Otu00007","Otu00019","Otu00025","Otu00047","Otu00004","Otu00048","Otu00049","Otu00105","Otu00145","Otu00130","Otu00028","Otu00135","Otu00074","Otu00295","Otu00160","Otu00173","Otu00157","Otu00330","Otu00116")
+)
+
+#Unaltered mothur taxonomy table
+Tax.orig = read.table("WLS.final.an.unique_list.0.02.cons.taxonomy", header=TRUE, row.names=1, sep="\t")
+```
+
+```{r}
+#Run KW script
+kruskal.pretty(OTU[!is.na(Pheno.sm$hbp11),], Pheno.sm[!is.na(Pheno.sm$hbp11),], fake.simper, c("hbp11"), 'hbp2', Tax.orig)
+kruskal.pretty(OTU[!is.na(Pheno.sm$hbs11),], Pheno.sm[!is.na(Pheno.sm$hbs11),], fake.simper, c("hbs11"), 'hbs2', Tax.orig)
+kruskal.pretty(OTU[!is.na(Pheno.sm$heart11),], Pheno.sm[!is.na(Pheno.sm$heart11),], fake.simper, c("heart11"), 'heart2', Tax.orig)
+kruskal.pretty(OTU[!is.na(Pheno.sm$arth11),], Pheno.sm[!is.na(Pheno.sm$arth11),], fake.simper, c("arth11"), 'arth2', Tax.orig)
+kruskal.pretty(OTU[!is.na(Pheno.sm$cancer11),], Pheno.sm[!is.na(Pheno.sm$cancer11),], fake.simper, c("cancer11"), 'cancer2', Tax.orig)
+kruskal.pretty(OTU[!is.na(Pheno.sm$stroke11),], Pheno.sm[!is.na(Pheno.sm$stroke11),], fake.simper, c("stroke11"), 'stroke2', Tax.orig)
+
+#IBS
+##G = Pheno$jx148rer
+##S = Pheno$px148rer
+vars.IBS = data.frame(
+  IBS = c(Pheno$jx148rer, Pheno$px148rer),
+  ID = c(paste(Pheno$idpriv, "g", sep=""), paste(Pheno$idpriv, "s", sep="")),
+  row.names = c(paste(Pheno$idpriv, "g", sep=""), paste(Pheno$idpriv, "s", sep=""))
+)
+vars.IBS.sub = as.data.frame(subset(vars.IBS, row.names(vars.IBS) %in% row.names(OTU)))
+vars.IBS.all = as.data.frame(vars.IBS.sub[!is.na(vars.IBS.sub$IBS),])
+OTU.IBS = subset(OTU, row.names(OTU) %in% row.names(vars.IBS.all))
+
+kruskal.pretty(OTU.IBS, vars.IBS.all, fake.simper, c("IBS"), 'IBS', Tax.orig)
+```
+
+```{r}
+OTU.list = c("Otu00004","Otu00019","Otu00074","Otu00160","Otu00295")
+ID.list = c(800550,801584,802272,819779,824947,826574,801963,805180,808517,808636,809723,809900,810597,814536,814992,817416,817811,818880,820532,822104,824899,829961,830111,831609,831872,831979,833554,833630,802057,802495,803711,805676,806210,806237,807715,810586,812445,813665,820767,800512,801318,801462,801537,802713,802925,805243,805681,805724,807581,808440,811009,811366,811742,812010,812652,812821,813950,815703,815776,816833,819326,820472,820993,822455,822703,825077,825908,828896,830250,831690,833559,833403,833471,810333,809805,829663,830014,831494,800718,800961,801486,802275,803188,804208,805077,805501,805648,806711,807154,807639,808247,809162,809574,809619,810730,810821,811550,811602,812130,815145,815170,815860,818097,820967,821764,823308,826853,827001,827503,828168,829266,832116,832237,832551,832769,832901,833533,803243,804279,806568,808232,809341,811959,812856,817436,817708,820266,821760,824464,826567,829496,801163)
+
+compare.abunds = function(OTU.list, ID.list, abund.table, Met.table){
+for(i in 1:length(ID.list)){
+  current.abund = abund.table[Met.table$ID == ID.list[i],]
+  current.met = Met.table[Met.table$ID == ID.list[i],]
+  for(y in 1:length(OTU.list)){
+      abundance1 = current.abund[[OTU.list[y]]]*100
+      link1 = current.met$Link
+      ID1 = rep(ID.list[i], length(link1))
+      OTU1 = rep(OTU.list[y], length(link1))
+      output = matrix(c(abundance1,link1,ID1,OTU1), ncol=4)
+      write.table(output, file="compare.abunds.csv", append=TRUE, sep=",", col.names=FALSE)
+  }}
+  z=read.table("compare.abunds.csv", sep=",", fill=TRUE, header=FALSE)
+  file.remove("compare.abunds.csv")
+  z=z[-c(1)]
+  colnames(z) = c("abundance","link","ID","OTU")
+  z$link=ifelse(z$link==1,"e", ifelse(z$link==2,"g", ifelse(z$link==3,"p", ifelse(z$link==4,"s","unknown"))))
+  write.csv(z, file="compare.abunds.csv")
+}
+
+compare.abunds(OTU.list, ID.list, abund, Met)
+```
