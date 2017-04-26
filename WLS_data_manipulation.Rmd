@@ -55,7 +55,6 @@ source("Pairwise_adonis.r")
 
 SIMPER related functions from https://github.com/asteinberger9/seq_scripts
 ```{r}
-source("simper_pretty.r")
 source("R_krusk.r")
 ```
 
@@ -115,7 +114,12 @@ set.seed(51234)
 
 #Calcuate tree of OTUs
 #Load in representative sequence distance matrix created in mothur. Then calculate a neighbor-joinging tree.
-NJ.tree = bionj(import_mothur_dist("clean_repFasta.phylip.dist"))
+#NJ.tree = bionj(import_mothur_dist("clean_repFasta.phylip.dist"))
+
+#OR
+
+#Load pre-calculated tree that was made using the above code
+load("NJ.tree2.rdata")
 
 #Designate OTU, metadata, and taxonomy tables + tree as such to phyloseq package 
 OTU.UF = otu_table(as.matrix(OTU), taxa_are_rows=FALSE)
@@ -254,6 +258,7 @@ In order to make this group comparable to the sibling group, we will subset to s
 Create matrix of sex comparisons
 ```{r}
 #Create a vector of sexes
+Pheno.sm$gender = ifelse(Pheno.sm$gender == 1, "M", ifelse(Pheno.sm$gender == 2, "F", Pheno.sm$gender))
 gender.vec = as.vector(Pheno.sm$gender)
 #Using a loop, create a matrix of sex comparison (i.e. MF, FM, MM FF)
 gender.mat = matrix(numeric(0), length(ID.vec), length(ID.vec))
@@ -291,7 +296,7 @@ Re-code to categorical
 * 2 = female = F
 
 ```{r}
-Pheno.sm$gender = ifelse(Pheno.sm$gender == 1, "M", "F")
+Pheno.sm$gender = ifelse(Pheno.sm$gender == 1, "M", ifelse(Pheno.sm$gender == 2, "F", Pheno.sm$gender))
 ```
 
 ###Cohabitation
@@ -796,6 +801,8 @@ Combine gp.se and gs data sets for variables that occur in both
 vars.gs.all.gs = vars.gs.all
 row.names(vars.gs.all.gs) = paste(row.names(vars.gs.all), "s", sep="")
 
+#Create yrs.edu.diff variable
+
 #Combine variables into new dataframe
 vars.gp.se.gs = data.frame(
   age.diff = c(vars.gp.se.all$age.diff, vars.gs.all.gs$age.diff),
@@ -926,8 +933,6 @@ relatedness.gs.match = subset(relatedness.gs.match, row.names(relatedness.gs.mat
 ```
 
 #Save environment
-Save the manipulated as an R environment for easy use in analysis.
-
 ```{r}
 save.image("F:/Box Sync/Kim/WLS/R/Paper 1/WLS_environment_final.RData")
 ```

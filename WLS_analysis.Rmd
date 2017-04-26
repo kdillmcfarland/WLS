@@ -434,35 +434,35 @@ There are no differences so we move forward with the graduate subset data set. W
 
 ###Sex and age
 
-```{r Basic}
+```{r Basic2}
 summary(aov(Met.g$shannon  ~ gender+age, data = vars.g))
 summary(aov(Met.g$chao  ~ gender+age, data = vars.g))
 ```
 
 ###Antibiotics
 
-```{r Antibiotics}
+```{r Antibiotics2}
 summary(aov(Met.g$shannon  ~ as.factor(AB), data = vars.g))
 summary(aov(Met.g$chao  ~ as.factor(AB), data = vars.g))
 ```
 
 ###Rural vs. urban
 
-```{r Rural.urban}
-summary(aov(Met.g$shannon ~ RU57*RU15, data = vars.g))
-summary(aov(Met.g$chao ~ RU57*RU15, data = vars.g))
+```{r Rural.urban2}
+summary(aov(Met.g$shannon ~ RU57*RU11, data = vars.g))
+summary(aov(Met.g$chao ~ RU57*RU11, data = vars.g))
 ```
 
 ###Education
 
-```{r Education.IQ}
+```{r Education.IQ2}
 summary(aov(Met.g$shannon ~ yrs.edu+iq, data = vars.g))
 summary(aov(Met.g$chao ~ yrs.edu+iq, data = vars.g))
 ```
 
 ###Human interaction
 
-```{r Human.interaction}
+```{r Human.interaction2}
 summary(aov(Met.g$shannon ~ cohabYN + child.sum + groom + social.sum + cohabYN:social.sum, data = vars.g))
 summary(aov(Met.g$chao ~ cohabYN + child.sum + groom + social.sum + cohabYN:social.sum, data = vars.g))
 
@@ -478,14 +478,14 @@ summary(aov(Met.g[vars.g$cohabYN == "N",]$chao ~ social.sum, data = vars.g[vars.
 
 ###Home environment
 
-```{r Home.environment}
+```{r Home.environment2}
 summary(aov(Met.g$shannon ~ dog + cat + pet.other + clean.house, data = vars.g))
 summary(aov(Met.g$chao ~ dog + cat + pet.other + clean.house, data = vars.g))
 ```
 
 ###Health 
 
-```{r Health}
+```{r Health2}
 summary(aov(Met.g$shannon ~ bmi+srh11+walk.ave, data = vars.g))
 summary(aov(Met.g$chao ~ bmi+srh11+walk.ave, data = vars.g))
 
@@ -495,14 +495,14 @@ summary(aov(Met.g$chao ~ as.factor(hbs11)+ as.factor(hbp11)+ as.factor(heart11)+
 
 ###Smoking
 
-```{r Smoking}
+```{r Smoking2}
 summary(aov(Met.g$shannon ~ as.factor(smokeYN), data = vars.g))
 summary(aov(Met.g$chao ~ as.factor(smokeYN), data = vars.g))
 ```
 
 ###Diet
 
-```{r Diet}
+```{r Diet2}
 summary(aov(Met.g$shannon ~ prot.sum + fruit.sum + veg.sum, data = vars.g))
 summary(aov(Met.g$chao ~ prot.sum + fruit.sum + veg.sum, data = vars.g))
 
@@ -511,7 +511,7 @@ summary(aov(Met.g$chao ~ meat+poul+pork+sea +meat:poul, data = vars.g))
 ```
 
 ###FDR-correction
-```{r FDR.corrections}
+```{r FDR.corrections2}
 shannon.list = c(0.153,0.798,0.0055,0.2075,0.1355,0.0919,0.218,0.8,0.18839,0.6775,0.4584,0.51954,0.00797,0.00516,0.222,0.0995,0.71,0.828,0.632,0.355,0.0829,0.0639,0.5078,0.0012,0.1831,0.7463,0.7133,0.4823,0.572,0.6505,0.675,0.5546,0.3442,0.0658,0.2743,0.5594,0.4588,0.8914,1.77E-06,0.0141)
 
 chao.list = c(0.0188,0.8906,0.0191,0.122275,0.000802,0.038202,0.0143,0.3284,0.132911,0.205808,0.811443,0.685167,0.000852,0.00531,0.289,0.0529,0.246,0.42,0.535,0.832,0.0353,0.2432,0.1356,0.0422,0.3791,0.9216,0.9683,0.172,0.3964,0.9721,0.163,0.688,0.15,0.248,0.8636,0.8794,0.795,0.2378,0.0323,NA)
@@ -595,21 +595,6 @@ Use linear models to assess if beta-diversity among spouse and/or sibling pairs 
 Variables specified as `diff` are the difference between values for individuals within a pair. For example, a spousal pair of person 1 = 70 yrs old and person 2 = 75 yrs old would have an `age.diff` of 5 yrs. In this way, we are testing if pairs being discordant in one or more variables causes their microbiota to be more or less similar.
 
 ###Variables in spouses and siblings
-####Education
-```{r}
-#Years of education
-summary(lm(match.BC.gp.se.gs ~ vars.gp.se.gs$yrs.edu.diff))
-summary(lm(match.J.gp.se.gs ~ vars.gp.se.gs$yrs.edu.diff))
-summary(lm(match.wUF.gp.se.gs ~ vars.gp.se.gs$yrs.edu.diff))
-summary(lm(match.uwUF.gp.se.gs ~ vars.gp.se.gs$yrs.edu.diff))
-
-#IQ
-summary(lm(match.BC.gp.se.gs ~ vars.gp.se.gs$iq.diff))
-summary(lm(match.J.gp.se.gs ~ vars.gp.se.gs$iq.diff))
-summary(lm(match.wUF.gp.se.gs ~ vars.gp.se.gs$iq.diff))
-summary(lm(match.uwUF.gp.se.gs ~ vars.gp.se.gs$iq.diff))
-```
-
 ####Closeness
 Self-reported relationship closeness.
 
@@ -927,8 +912,8 @@ gp.se.gs.boxplot = data.frame(
   J = c(match.J.gp.se.gs, KW.results.final[KW.results.final$V6 == "dist" & complete.cases(KW.results.final),]$V3),
   wUF = c(match.wUF.gp.se.gs, KW.results.final[KW.results.final$V6 == "dist" & complete.cases(KW.results.final),]$V4),
   uwUF = c(match.uwUF.gp.se.gs, KW.results.final[KW.results.final$V6 == "dist" & complete.cases(KW.results.final),]$V5),
-  group = c(rep("1.spouse", length(match.BC.gp.se)), rep("2.sibling", length(match.BC.gs)), rep("3.unrelated", 100000))
-)
+  group = c(rep("1.spouse", length(match.BC.gp.se)), rep("2.sibling", length(match.BC.gs)), rep("3.unrelated", length((KW.results.final[KW.results.final$V6 == "dist" & complete.cases(KW.results.final),]$V2)))))
+
 
 #Add variable for closeness:pair type
 vars.gp.se.gs$closeness.group = ifelse(floor(vars.gp.se.gs$closeness) == 1 & vars.gp.se.gs$group == "spouse", "1.spouse",
