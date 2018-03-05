@@ -8,9 +8,11 @@ output:
     toc_float: true
     toc_depth: 4
   pdf_document: default
+editor_options: 
+  chunk_output_type: console
 ---
 
-#Introduction
+# Introduction
 The Wisconsin Longitudinal Study (WLS) is a long-term study of 1957 high school graduates in Wisconsin (N=10317). The survey-based data includes physical and mental health as well as human-human and human-environment interactions from late adolescence (1957) through 2011. These include variables such as social background, aspirations, schooling, military service, labor market experiences, family characteristics and events, social participation, psychological characteristics and retirement.
 
 > Herd, Pamela, Deborah Carr, and Carol Roan. 2014. "Cohort Profile: Wisconsin Longitudinal Study (WLS)." International Journal of Epidemiology 43:34-41 PMCID: PMC3937969
@@ -26,8 +28,8 @@ In 2015-6, a microbiota component was added to the WLS with fecal sample collect
 
 More information and access to the data available at http://www.ssc.wisc.edu/wlsresearch/
 
-#Load data
-##Packages
+# Load data
+## Packages
 ```{r}
 #The vegan package provides tools for descriptive community ecology. It has most basic functions of diversity analysis, community ordination and dissimilarity analysis.
 #In general, this package is used for Bray-Curtis and Jaccard analyses.
@@ -47,7 +49,7 @@ library(phangorn)
 library(foreign)
 ```
 
-##Functions
+## Functions
 Pairwise adonis function. Modified from https://www.researchgate.net/post/How_can_I_do_PerMANOVA_pairwise_contrasts_in_R
 ```{r}
 source("Pairwise_adonis.r")
@@ -58,7 +60,7 @@ SIMPER related functions from https://github.com/asteinberger9/seq_scripts
 source("R_krusk.r")
 ```
 
-##Data
+## Data
 Available through wls@ssc.wisc.edu
 ```{r warning=FALSE}
 #.shared file generated using mothur. Samples normalizsed to 10,000 sequences per sample. 'label' and 'numOtus' columns removed.
@@ -105,8 +107,8 @@ Pheno = Pheno[order(row.names(Pheno)),]
 Pheno.sm = Pheno.sm[order(row.names(Pheno.sm)),]
 ```
 
-#Beta-diversity
-##Phyloseq object creation (UniFrac)
+# Beta-diversity
+## Phyloseq object creation (UniFrac)
 For all samples
 ```{r}
 #Set random seed for reproducibility
@@ -147,7 +149,7 @@ Met.UF.g = sample_data(Met.g)
 physeq.tree.g = phyloseq(OTU.UF.g, Tax.UF.g, Met.UF.g, NJ.tree.UF)
 ```
 
-##Calculate beta-diversity
+## Calculate beta-diversity
 ```{r}
 #For all data
 BC.dist=as.matrix(vegdist(OTU, distance="bray"))
@@ -162,7 +164,7 @@ wUF.dist.g = as.matrix(UniFrac(physeq.tree.g, weighted=TRUE, normalized=TRUE))
 uwUF.dist.g = as.matrix(UniFrac(physeq.tree.g, weighted=FALSE, normalized=TRUE))
 ```
 
-##Extract distances for spouse & sibling pairs
+## Extract distances for spouse & sibling pairs
 Create distance matrix from ID comparisons so that you can pull out gp, gs, se comparisons from the same family (ID distance = 0)
 ```{r}
 ID.vec = as.vector(Met$ID)
@@ -252,7 +254,7 @@ match.uwUF.gs = uwUF.dist[ID.dist == 0 & Link.mat == "gs"]
     names(match.uwUF.gs) = paste(names(match.uwUF.gs), "g", sep = "")
 ```
 
-##Extract distance for unrelated pairs
+## Extract distance for unrelated pairs
 In order to make this group comparable to the sibling group, we will subset to similar ratios of same sex and opposite sex pairs.
 
 Create matrix of sex comparisons
@@ -287,9 +289,9 @@ match.wUF.MMFF = wUF.dist[ID.dist != 0 & gender.mat.rename == "same"]
 match.uwUF.MMFF = uwUF.dist[ID.dist != 0 & gender.mat.rename == "same"]
 ```
 
-#WLS data
-##Re-code variables
-###Gender
+# WLS data
+## Re-code variables
+### Sex
 Re-code to categorical 
 
 * 1 = male = M
@@ -299,7 +301,7 @@ Re-code to categorical
 Pheno.sm$gender = ifelse(Pheno.sm$gender == 1, "M", ifelse(Pheno.sm$gender == 2, "F", Pheno.sm$gender))
 ```
 
-###Cohabitation
+### Cohabitation
 Cohabiting YN: Re-code spouse co-cohabitation to yes or no
 
 *1 = currently married = Y
@@ -365,14 +367,14 @@ Pheno$KD01706 = ifelse(is.na(Pheno$KD01706), 0,
                      ifelse(Pheno$KD01706 == 2, 0, Pheno$KD01706))
 ```
 
-###Closeness
+### Closeness
 Re-code sibling closeness to be 4 = closer so is comparable to spousal closeness survey question
 ```{r}
 Pheno$sib.close.g = as.vector(reverse.code(-1, Pheno$HK062SSD, mini=1, maxi=4))
 Pheno$sib.close.s = as.vector(reverse.code(-1, Pheno$KK062SSD, mini=1, maxi=4))
 ```
 
-###Pets
+### Pets
 Replace all NAs in q20 (Y/N pet) and q21 (Y/N type of pet) with no = 2
 ```{r}
 Pheno.sm$petYN = replace(Pheno.sm$q20, is.na(Pheno.sm$q20), as.numeric(2))
@@ -401,7 +403,7 @@ Pheno.sm$cat.fix = ifelse(Pheno.sm$other == "Live on farm and have daily contact
                              Pheno.sm$cat)) 
 ```
 
-###Farm-urban
+### Farm-urban
 Re-code farm vs. urban variables to categorical
 
 OCF357: Father's occupation
@@ -460,7 +462,7 @@ Pheno$RU.HS.e = ifelse(Pheno$BB044RE %in% c(1,2), "urban",
                          ifelse(Pheno$BB044RE == 3, "rural", Pheno$BB044RE))
 ```
 
-###Diet
+### Diet
 Fill in any protein NAs for vegetarians with 0 and change 8 (have not eaten in past year) to 0
 ```{r}
 Pheno.sm$meat = ifelse(Pheno.sm$q12 == 2 & is.na(Pheno.sm$q13), 0,
@@ -484,8 +486,8 @@ Pheno.sm$fruit.sum = rowSums(subset(Pheno.sm, select=q18_1:q18_24), na.rm=TRUE)
 Pheno.sm$veg.sum = rowSums(subset(Pheno.sm, select=q17_1:q17_76), na.rm=TRUE)
 ```
 
-##Create variables
-###Graduates
+## Create variables
+### Graduates
 Subset the data
 ```{r}
 Pheno.sm.g = Pheno.sm[Pheno.sm$rtype == "g",]
@@ -533,7 +535,7 @@ vars.g = data.frame(
   )
 ```
 
-###Spouses
+### Spouses
 Create a list of all IDs for participants with a corresponding spouse in the data set
 ```{r}
 #Create a list of IDs repeated x2 for gp and se groups
@@ -596,7 +598,7 @@ vars.gp.se.all = merge(vars.gp.se, Pheno.sm.gp.se.vars, by="row.names", all=TRUE
 row.names(vars.gp.se.all) = vars.gp.se.all$Row.names
 ```
 
-####Re-code variables
+#### Re-code variables
 Rural vs. urban
 
 * Make any answer with at least one NA = NA
@@ -648,7 +650,7 @@ vars.gp.se.all = subset(vars.gp.se.all, row.names(vars.gp.se.all) %in% names(mat
 vars.gp.se.all = vars.gp.se.all[match(names(match.BC.gp.se), row.names(vars.gp.se.all)),]
 ```
 
-###Siblings
+### Siblings
 Create a list of IDs for gs groups
 ```{r}
 names.gs = paste(Pheno$idpriv, "g", sep="")
@@ -707,7 +709,7 @@ vars.gs.all = merge(vars.gs, Pheno.sm.gs.vars, by="row.names", all=TRUE)
 row.names(vars.gs.all) = vars.gs.all$Row.names
 ```
 
-####Re-code variables
+#### Re-code variables
 Sex
 
 * Any answers with 1 NA become NA overall
@@ -793,7 +795,7 @@ vars.gs.all = subset(vars.gs.all, row.names(vars.gs.all) %in% names(match.BC.gs)
 vars.gs.all = vars.gs.all[match(names(match.BC.gs), row.names(vars.gs.all)),]
 ```
 
-###Combine spouses and siblings
+### Combine spouses and siblings
 
 Combine gp.se and gs data sets for variables that occur in both
 ```{r}
@@ -837,7 +839,7 @@ match.uwUF.gp.se.gs = append(match.uwUF.gp.se, match.uwUF.gs)
   names(match.uwUF.gp.se.gs) = row.names(vars.gp.se.gs)
 ```
 
-###Diet
+### Diet
 Create data frame of just dietary components
 ```{r}
 diet = subset(Pheno.sm, select = c(idpriv, rtype, meat:sea, q17_1:q17_76, q18_1:q18_24), na.rm=TRUE)
@@ -914,7 +916,7 @@ match.wUF.gs.diet = match.wUF.gs[names(match.wUF.gs) %in% row.names(diet.gs.diff
 match.uwUF.gs.diet = match.uwUF.gs[names(match.uwUF.gs) %in% row.names(diet.gs.diff)]
 ```
 
-###Kinship
+### Kinship
 Subset kinship dataset to just related pairs
 ```{r}
 relatedness.gs = relatedness[relatedness$idpriv_id1 == relatedness$idpriv_id2,]
@@ -932,7 +934,7 @@ relatedness.gs.match = relatedness.gs[row.names(relatedness.gs) %in% names(match
 relatedness.gs.match = subset(relatedness.gs.match, row.names(relatedness.gs.match) %in% names(match.BC.gs))
 ```
 
-#Save environment
+# Save environment
 ```{r}
-save.image("F:/Box Sync/Kim/WLS/R/Paper 1/WLS_environment_final.RData")
+#save.image("F:/Box Sync/Kim/WLS/R/Paper 1/WLS_environment_final.RData")
 ```

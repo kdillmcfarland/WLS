@@ -8,7 +8,7 @@ output:
     toc_float: true
   pdf_document: default
 ---
-#Introduction
+# Introduction
 The Wisconsin Longitudinal Study (WLS) is a long-term study of 1957 high school graduates in Wisconsin (N=10317). The survey-based data includes physical and mental health as well as human-human and human-environment interactions from late adolescence (1957) through 2011. These include variables such as social background, aspirations, schooling, military service, labor market experiences, family characteristics and events, social participation, psychological characteristics and retirement.
 
 > Herd, Pamela, Deborah Carr, and Carol Roan. 2014. "Cohort Profile: Wisconsin Longitudinal Study (WLS)." International Journal of Epidemiology 43:34-41 PMCID: PMC3937969
@@ -24,7 +24,7 @@ In 2015-6, a microbiota component was added to the WLS with fecal sample collect
 
 More information and access to the data available at http://www.ssc.wisc.edu/wlsresearch/
 
-#Sequence clean-up
+# Sequence clean-up
 Process fastqs to
 
 * remove poor quality sequences
@@ -116,7 +116,7 @@ system(cp WLS.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.a
 ```
 
 
-#Define OTUs
+# Define OTUs
 Calculate a distance matrix and cluster using average neighbor calculation. 
 ```{}
 dist.seqs(fasta=WLS.final.fasta, processors=20)
@@ -129,24 +129,24 @@ Define OTUs at 97% similarity.
 make.shared(list=WLS.final.an.unique_list.list, count=WLS.final.count_table, label=0.03)
 ```
 
-#Coverage
+# Coverage
 Calculate Good's coverage.
 ```{}
 summary.single(shared=WLS.final.an.unique_list.shared, label=0.03, calc=nseqs-sobs-coverage)
 ```
 
-#Normalize
+# Normalize
 Normalize OTU table to 10,000 sequences per sample. This will remove 18 low coverage samples.
 ```{}
 normalize.shared(shared=WLS.final.an.unique_list.shared, method=totalgroup, norm=10000)
 ```
 
-#Alpha-diversity
+# Alpha-diversity
 ```{}
 summary.single(shared=WLS.final.an.unique_list.0.03.norm.shared, label=0.03, calc=nseqs-sobs-coverage-bergerparker-chao-shannon-simpson-ace)
 ```
 
-#Classification
+# Classification
 Classify OTUs to the [GreenGenes reference database](https://mothur.org/wiki/Greengenes-formatted_databases)
 ```{}
 classify.seqs(fasta=WLS.final.fasta, count=WLS.final.count_table, template=/home/GLBRCORG/dillmcfarlan/mothur files/gg_2013.fasta, taxonomy=/home/GLBRCORG/dillmcfarlan/mothur files/gg_2013.gg.tax, cutoff=80, processors=10)
@@ -154,7 +154,7 @@ classify.seqs(fasta=WLS.final.fasta, count=WLS.final.count_table, template=/home
 classify.otu(list=WLS.final.an.unique_list.list, taxonomy=WLS.final.gg.wang.taxonomy, count=WLS.final.count_table, label=0.03, cutoff=80, basis=otu, probs=F)
 ```
 
-#Representative sequences
+# Representative sequences
 Pick representative sequences for OTUs
 ```{}
 get.oturep(column=WLS.final.dist, list=WLS.final.an.unique_list.list, fasta=WLS.final.fasta, count=WLS.final.count_table, label=0.03, large=T)

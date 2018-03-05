@@ -3,13 +3,15 @@ title: "WLS_analysis"
 author: "Kim Dill-McFarland"
 date: "April 20, 2017"
 output:
+  pdf_document: default
   html_document: 
     toc: true
     toc_float: true
-  pdf_document: default
+editor_options: 
+  chunk_output_type: console
 ---
-#Load data
-##Packages
+# Load data
+## Packages
 ```{r}
 #The vegan package provides tools for descriptive community ecology. It has most basic functions of diversity analysis, community ordination and dissimilarity analysis.
 #In general, this package is used for Bray-Curtis and Jaccard analyses.
@@ -26,7 +28,7 @@ library(lattice)
 library(gridExtra)
 ```
 
-##Functions
+## Functions
 
 * R-krusk: Function to calculate Kruskal-Wallis for OTUs and variables identified in SIMPER analysis. From [A. Steinberger](https://github.com/asteinberger9/seq_scripts)
 * Multiplot: for placing 2 or more ggplot2 graphs in one figure. From [Cookbook for R](http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/)
@@ -38,14 +40,14 @@ source("multiplot.R")
 source("Pairwise_adonis.R")
 ```
 
-##Data
+## Data
 Load environment from `WLS_data_manipulation.Rmd`
 ```{r}
 load("WLS_environment_final.rdata")
 ```
 
-#Gradutes-only
-##Beta-diversity
+# Gradutes-only
+## Beta-diversity
 Tests performed on the graduate samples to avoid possible interactions between spouses and siblings. First, check if the graduate subset is different from the other sample types to ensure the subset is a good representation of the overall data set. 
 ```{r}
 #Test if the overall microbiota differs by groups (g, p, s, e). We do not expect significance as these groups are merely a means of ID different individuals in the dataset 
@@ -58,7 +60,7 @@ adonis(uwUF.dist ~ Link,  data=Met, permuations=1000)
 
 There are no differences so we move forward with the graduate subset data set. We will run a number of PERMANOVA (`adonis`) tests of variables of interest. All tests are run on Bray-Curtis, Jaccard, weighted and unweighted UniFrac distance measures. For variables with missing data, the data is subset to only `complete.cases` to avoid NA errors in `adonis`.
 
-###Sex and age
+### Sex and age
 ```{r}
 #Does sex/gender or age correlate to the gut microbiota?
 adonis(BC.dist.g ~ gender+age, data = vars.g, permutations=1000)
@@ -115,7 +117,7 @@ For the variables that do differ by sex, we will stratify (`strata`) the model b
 * cohabYN
 * walk.ave
 
-###Antibiotics
+### Antibiotics
 Does antibiotic use correlate to the gut microbiota?
 
 * AB = antibiotic use in the last 6 months, YN
@@ -136,7 +138,7 @@ adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[com
        permuations=1000)
 ```
 
-###Rural vs. urban
+### Rural vs. urban
 Does rural-urban upbringing or current residence correlate to the gut microbiota?
 
 * RU57 = OCF357 = Father's occupation in 1957
@@ -158,7 +160,7 @@ adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[com
        permuations=1000)
 ```
 
-###Education
+### Education
 Does education or IQ correlate to the gut microbiota?
 
 * yrs.edu = hb103red = years of education
@@ -180,7 +182,7 @@ adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[com
        permuations=1000)
 ```
 
-###Human interaction
+### Human interaction
 Does human interaction correlate to the gut microbiota?
 
 * cohabYN = cohab = Cohabiting with spouse, YN (strata by sex)
@@ -259,7 +261,7 @@ adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars) & vars.g$cohabYN == "N"
        data = vars.g[complete.cases(vars) & vars.g$cohabYN == "N",], permuations=1000)
 ```
 
-###Home environment
+### Home environment
 Does the home environment correlate to the gut microbiota?
 
 * dog = dog in house
@@ -283,7 +285,7 @@ adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[com
        permuations=1000)
 ```
 
-###Health
+### Health
 Does health correlate to the gut microbiota?
 
 * bmi = body mass index based on height and weight
@@ -333,7 +335,7 @@ adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[com
        data = vars.g[complete.cases(vars),], permuations=1000)
 ```
 
-###Smoking
+### Smoking
 Does smoking impact the microbiota?
 
 * smokeYN = jx013rec = currrently a smoker, YN
@@ -354,7 +356,7 @@ adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[com
        permuations=1000)
 ```
 
-###Diet
+### Diet
 Does diet impact the microbiota?
 
 * prot.sum = Times consume protein / wk
@@ -405,7 +407,7 @@ adonis(uwUF.dist.g[row.names(vars.g[complete.cases(vars),]),row.names(vars.g[com
        permuations=1000)
 ```
 
-###FDR-correction
+### FDR-correction
 Correct P-values for beta-diversity tests across all graduates for multiple comparison testing.
 
 ```{r FDR.corrections.g}
@@ -420,7 +422,7 @@ p.adjust(wUF.list, method="BH")
 p.adjust(uwUF.list, method="BH")
 ```
 
-##Alpha-diversity
+## Alpha-diversity
 Tests performed on the graduate samples to avoid possible interactions between spouses and siblings. First, check if the graduate subset is different from the other sample types to ensure the subset is a good representation of the overall data set.
 
 ```{r}
@@ -432,35 +434,35 @@ summary(aov(ace  ~ Link, data=Met))
 
 There are no differences so we move forward with the graduate subset data set. We will run a number of ANOVA (`aov`) tests of variables of interest similar to those run on beta-diversity. All tests are run on the Shannon's diversity index and Chao richness estimate. For more information on variables, see the corresponding beta-diversity test.
 
-###Sex and age
+### Sex and age
 
 ```{r Basic2}
 summary(aov(Met.g$shannon  ~ gender+age, data = vars.g))
 summary(aov(Met.g$chao  ~ gender+age, data = vars.g))
 ```
 
-###Antibiotics
+### Antibiotics
 
 ```{r Antibiotics2}
 summary(aov(Met.g$shannon  ~ as.factor(AB), data = vars.g))
 summary(aov(Met.g$chao  ~ as.factor(AB), data = vars.g))
 ```
 
-###Rural vs. urban
+### Rural vs. urban
 
 ```{r Rural.urban2}
 summary(aov(Met.g$shannon ~ RU57*RU11, data = vars.g))
 summary(aov(Met.g$chao ~ RU57*RU11, data = vars.g))
 ```
 
-###Education
+### Education
 
 ```{r Education.IQ2}
 summary(aov(Met.g$shannon ~ yrs.edu+iq, data = vars.g))
 summary(aov(Met.g$chao ~ yrs.edu+iq, data = vars.g))
 ```
 
-###Human interaction
+### Human interaction
 
 ```{r Human.interaction2}
 summary(aov(Met.g$shannon ~ cohabYN + child.sum + groom + social.sum + cohabYN:social.sum, data = vars.g))
@@ -476,14 +478,14 @@ summary(aov(Met.g[vars.g$cohabYN == "N",]$shannon ~ social.sum, data = vars.g[va
 summary(aov(Met.g[vars.g$cohabYN == "N",]$chao ~ social.sum, data = vars.g[vars.g$cohabYN == "N",]))
 ```
 
-###Home environment
+### Home environment
 
 ```{r Home.environment2}
 summary(aov(Met.g$shannon ~ dog + cat + pet.other + clean.house, data = vars.g))
 summary(aov(Met.g$chao ~ dog + cat + pet.other + clean.house, data = vars.g))
 ```
 
-###Health 
+### Health 
 
 ```{r Health2}
 summary(aov(Met.g$shannon ~ bmi+srh11+walk.ave, data = vars.g))
@@ -493,14 +495,14 @@ summary(aov(Met.g$shannon ~ as.factor(hbs11)+ as.factor(hbp11)+ as.factor(heart1
 summary(aov(Met.g$chao ~ as.factor(hbs11)+ as.factor(hbp11)+ as.factor(heart11)+ as.factor(arth11)+ as.factor(cancer11)+ as.factor(stroke11)+ as.factor(IBS), data = vars.g))
 ```
 
-###Smoking
+### Smoking
 
 ```{r Smoking2}
 summary(aov(Met.g$shannon ~ as.factor(smokeYN), data = vars.g))
 summary(aov(Met.g$chao ~ as.factor(smokeYN), data = vars.g))
 ```
 
-###Diet
+### Diet
 
 ```{r Diet2}
 summary(aov(Met.g$shannon ~ prot.sum + fruit.sum + veg.sum, data = vars.g))
@@ -510,7 +512,7 @@ summary(aov(Met.g$shannon ~ meat+poul+pork+sea +meat:poul +poul:pork, data = var
 summary(aov(Met.g$chao ~ meat+poul+pork+sea +meat:poul, data = vars.g))
 ```
 
-###FDR-correction
+### FDR-correction
 ```{r FDR.corrections2}
 shannon.list = c(0.153,0.798,0.0055,0.2075,0.1355,0.0919,0.218,0.8,0.18839,0.6775,0.4584,0.51954,0.00797,0.00516,0.222,0.0995,0.71,0.828,0.632,0.355,0.0829,0.0639,0.5078,0.0012,0.1831,0.7463,0.7133,0.4823,0.572,0.6505,0.675,0.5546,0.3442,0.0658,0.2743,0.5594,0.4588,0.8914,1.77E-06,0.0141)
 
@@ -520,8 +522,8 @@ p.adjust(shannon.list, method="BH")
 p.adjust(chao.list, method="BH")
 ```
 
-#Spouses and siblings
-##Beta-diversity
+# Spouses and siblings
+## Beta-diversity
 Are spouses or siblings more similar? Compare beta-diveristy (Bray-Curtis, Jaccard, weighted and unweighted UniFrac) of spouses, siblings, and unrelated pairs. The unrelated group is defined as pairs that were not siblings, spouses, or in-laws within the dataset. The unrelated group was subsampled to 100 pairs with sex ratios equivalent to the sibling dataset (57% same sex pairs) and P-values were averaged across 1000 iterative subsamples 
 
 Since sample sizes and variance are unequal, compare groups by Kruskal-Wallis. Ties exist (values occur more than once in a group) so use Chi-squared method to correct within pairwise comparisons.
@@ -594,8 +596,8 @@ Use linear models to assess if beta-diversity among spouse and/or sibling pairs 
 
 Variables specified as `diff` are the difference between values for individuals within a pair. For example, a spousal pair of person 1 = 70 yrs old and person 2 = 75 yrs old would have an `age.diff` of 5 yrs. In this way, we are testing if pairs being discordant in one or more variables causes their microbiota to be more or less similar.
 
-###Variables in spouses and siblings
-####Closeness
+### Variables in spouses and siblings
+#### Closeness
 Self-reported relationship closeness.
 
 * 1 = not at all
@@ -626,7 +628,7 @@ pairwise.t.test(match.wUF.gp.se.gs, vars.gp.se.gs$close.group, p.adj = "BH")
 pairwise.t.test(match.uwUF.gp.se.gs, vars.gp.se.gs$close.group, p.adj = "BH")
 ```
 
-####Health
+#### Health
 ```{r}
 #Heart disease
 summary(aov(match.BC.gp.se.gs ~ as.factor(vars.gp.se.gs$heart.diff.cat)))
@@ -641,7 +643,7 @@ summary(aov(match.wUF.gp.se.gs ~ as.factor(vars.gp.se.gs$hbs.diff.cat)))
 summary(aov(match.uwUF.gp.se.gs ~ as.factor(vars.gp.se.gs$hbs.diff.cat)))
 ```
 
-####Diet
+#### Diet
 ```{r}
 #Distance in protein consumption
 summary(lm(match.BC.gp.se.gs ~ match.prot.gp.se.gs))
@@ -658,8 +660,8 @@ summary(lm(match.uwUF.gp.se.gs ~  vars.gp.se.gs$meat.diff*vars.gp.se.gs$poul.dif
 ```
 
 
-###Variables only in spouses
-####Rural vs. urban
+### Variables only in spouses
+#### Rural vs. urban
 Not tested for siblings as all pairs resided together as children
 ```{r}
 summary(aov(match.BC.gp.se ~ vars.gp.se.all$RU.diff.cat))
@@ -668,7 +670,7 @@ summary(aov(match.wUF.gp.se ~ vars.gp.se.all$RU.diff.cat))
 summary(aov(match.uwUF.gp.se ~ vars.gp.se.all$RU.diff.cat))
 ```
 
-####Years cohabiting
+#### Years cohabiting
 ```{r}
 summary(lm(match.BC.gp.se ~ vars.gp.se.all$yrs.cohab.marr))
 summary(lm(match.J.gp.se ~ vars.gp.se.all$yrs.cohab.marr))
@@ -676,7 +678,7 @@ summary(lm(match.wUF.gp.se ~ vars.gp.se.all$yrs.cohab.marr))
 summary(lm(match.uwUF.gp.se ~ vars.gp.se.all$yrs.cohab.marr))
 ```
 
-####Closeness
+#### Closeness
 Test if closeness results hold true across just spouses
 ```{r}
 summary(lm(match.BC.gp.se ~ as.factor(floor(vars.gp.se.all$closeness))))
@@ -685,8 +687,8 @@ summary(lm(match.wUF.gp.se ~ as.factor(floor(vars.gp.se.all$closeness))))
 summary(lm(match.uwUF.gp.se ~ as.factor(floor(vars.gp.se.all$closeness))))
 ```
 
-###Variables only in siblings
-####Sex
+### Variables only in siblings
+#### Sex
 Not tested for spouses because all spousal pairs were male-female
 ```{r}
 summary(aov(match.BC.gs ~ as.factor(vars.gs.all$gender.diff.cat)))
@@ -695,7 +697,7 @@ summary(aov(match.wUF.gs ~ as.factor(vars.gs.all$gender.diff.cat)))
 summary(aov(match.uwUF.gs ~ as.factor(vars.gs.all$gender.diff.cat)))
 ```
 
-####Genetics
+#### Genetics
 Genetic relatedness defined by a kinship score.
 ```{r}
 #Subset data to those with kinship scores available
@@ -710,7 +712,7 @@ summary(aov(match.wUF.gs.relate ~ relatedness.gs.match$kinship))
 summary(aov(match.uwUF.gs.relate ~ relatedness.gs.match$kinship))
 ```
 
-####Rural vs. urban
+#### Rural vs. urban
 Not tested for spouses as all resided together at time of sampling.
 ```{r}
 summary(aov(match.BC.gs ~ as.factor(vars.gs.all$RU11.diff)))
@@ -719,7 +721,7 @@ summary(aov(match.wUF.gs ~ as.factor(vars.gs.all$RU11.diff)))
 summary(aov(match.uwUF.gs ~ as.factor(vars.gs.all$RU11.diff)))
 ```
 
-####CohabYN
+#### CohabYN
 Cohabiting with a spouse or not
 ```{r}
 summary(aov(match.BC.gs ~ as.factor(vars.gs.all$cohab.diff.cat)))
@@ -728,7 +730,7 @@ summary(aov(match.wUF.gs ~ as.factor(vars.gs.all$cohab.diff.cat)))
 summary(aov(match.uwUF.gs ~ as.factor(vars.gs.all$cohab.diff.cat)))
 ```
 
-####Socialness
+#### Socialness
 ```{r}
 summary(lm(match.BC.gs ~ vars.gs.all$social.sum.diff))
 summary(lm(match.J.gs ~ vars.gs.all$social.sum.diff))
@@ -736,7 +738,7 @@ summary(lm(match.wUF.gs ~ vars.gs.all$social.sum.diff))
 summary(lm(match.uwUF.gs ~ vars.gs.all$social.sum.diff))
 ```
 
-####Closeness
+#### Closeness
 Test if closeness results hold true across just siblings
 ```{r}
 summary(aov(match.BC.gs ~ as.factor(floor(vars.gs.all$closeness.ave))))
@@ -745,7 +747,7 @@ summary(aov(match.wUF.gs ~ as.factor(floor(vars.gs.all$closeness.ave))))
 summary(aov(match.uwUF.gs ~ as.factor(floor(vars.gs.all$closeness.ave))))
 ```
 
-###FDR-correction
+### FDR-correction
 ```{r}
 BC.sib.spouse.list = c(0.554,0.257,0.869,0.514,0.271,0.0626,0.118,0.0319,0.544,0.272,0.194,0.0148,0.272,0.5318,0.7282,0.0318)
 J.sib.spouse.list = c(0.491,0.219,0.871,0.414,0.254,0.0533,0.155,0.0305,0.519,0.219,0.159,0.0179,0.301,0.5381,0.7658,0.0428)
@@ -758,7 +760,7 @@ p.adjust(wUF.sib.spouse.list, method="BH")
 p.adjust(uwUF.sib.spouse.list, method="BH")
 ```
 
-##Interactions
+## Interactions
 Do variables that explain beta-diversity differ between spouse and sibling groups?
 ```{r}
 #AB
@@ -789,7 +791,7 @@ plot(table(vars.gp.se.gs$group, as.factor(floor(vars.gp.se.gs$closeness))), ylab
 boxplot(match.prot.gp.se.gs ~ vars.gp.se.gs$group, ylab="dist.prot")
 ```
 
-#OTUs and health
+# OTUs and health
 OTUs commonly shared between siblings or spouses (> 50% of pairs) and rare in the overall dataset (< 70% of samples, < 49% of unrelated pairs) were correlated to health outcomes in the whole dataset by Kruskal-Wallis with the Benjamini-Hochberg correction for multiple comparisons.
 
 We will co-op the `kruskal.pretty` function to run these tests by creating a fake SIMPER output. We will also need to load our unaltered `.cons.taxonomy` table from mothur as the function cannot take the altered version `Tax` we have used those far.
@@ -840,8 +842,8 @@ Run Kruskal-Wallis test of new IBS varibale.
 kruskal.pretty(OTU.IBS, vars.IBS.all, fake.simper, c("IBS"), 'IBS', Tax.orig)
 ```
 
-#Figures
-##Figure 1
+# Figures
+## Figure 1
 ```{r}
 set.seed(51234)
 #Calculate NMDS
@@ -885,23 +887,21 @@ plot(ef.uwUF.poul, col="black")
 dev.off()
 ```
 
-##Figure 2
+## Figure 2
 ```{r}
 #Figure 2
-postscript("FIGURE2.eps", width = 5, height = 3, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
+postscript("FIGURE2new.eps", width = 5, height = 4, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
 layout(matrix(c(1,2), 1, 2, byrow = TRUE), widths=c(1,1), heights=c(1,1))
 
 #Shannon
 boxplot(Met.g$shannon ~ vars.g$cohabYN, ylab="Shannon's diversity", main="", xlab="Cohabitating", col=c("red", "blue"))
-stripchart(Met.g$shannon ~ vars.g$cohabYN, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.25)
 
 #Chao
 boxplot(Met.g$chao ~ vars.g$cohabYN, ylab="Chao's richness", main="", xlab="Cohabitating", col=c("red", "blue"))
-stripchart(Met.g$chao ~ vars.g$cohabYN, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.25)
 dev.off()
 ```
 
-##Figure 3
+## Figure 3
 ```{r}
 #Load results from KW.subsample.fxn
 KW.results.final = read.table("KW.results.csv", sep=",")
@@ -932,15 +932,12 @@ layout(matrix(c(1,2,3), 1, 3, byrow = TRUE), widths=c(2,2.5,3), heights=c(1,1,1)
 boxplot(gp.se.gs.boxplot$uwUF ~ gp.se.gs.boxplot$group, main = "", ylab="Unweighted UniFrac distance", col=c("red","blue","white"), ylim=c(0.3,0.95))
 
 boxplot(match.uwUF.gp.se.gs~floor(vars.gp.se.gs$closeness), xlab="", ylab="", main="",  outpch=NA, ylim=c(0.3,0.95), col="purple")
-stripchart(match.uwUF.gp.se.gs~floor(vars.gp.se.gs$closeness), col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.5)
 
 boxplot(match.uwUF.gp.se.gs~vars.gp.se.gs$closeness.group, col=c("blue", "blue", "blue", "red", "blue", "red"), xlab="", ylab="", main="",  outpch=NA, ylim=c(0.3,0.95))
-stripchart(match.uwUF.gp.se.gs~vars.gp.se.gs$closeness.group, col="black", bg="black", pch=21, vertical=TRUE, method="jitter", add=TRUE, cex=0.5)
-
 dev.off()
 ```
 
-##Figure 4
+## Figure 4
 ```{r}
 #Calculate relative abundances
 abund = OTU/rowSums(OTU)
@@ -988,7 +985,7 @@ multiplot(plot1, plot2, cols=2)
 dev.off()
 ```
 
-##Figure S1
+## Figure S1
 ```{r}
 set.seed(51234)
 #Calculate NMDS
@@ -1054,7 +1051,7 @@ plot(wUF.g.ordu, type="n", main="Weighted UniFrac", xlab="", ylab="", xlim=c(-0.
 dev.off()
 ```
 
-##Figure S2
+## Figure S2
 ```{r}
 #Re-code variables to YN letters
 vars.g$AB = ifelse(vars.g$AB == 1, "Y", ifelse(vars.g$AB == 2, "N", vars.g$AB))
@@ -1088,7 +1085,7 @@ levelplot(Met.g$shannon ~ vars.g$poul*vars.g$pork, col.regions=function(x)rev(gr
 dev.off()
 ```
 
-##Figure S3
+## Figure S3
 ```{r}
 #Calculate linear models
 shan.social.cohabY = glm(Met.g[vars.g$cohabYN == "Y",]$shannon ~ vars.g[vars.g$cohabYN == "Y",]$social.sum)
@@ -1110,7 +1107,7 @@ plot(Met.g$chao ~ vars.g$social.sum, pch=21, col="black", bg=c("red","blue")[var
 dev.off()
 ```
 
-##Figure S4
+## Figure S4
 ```{r}
 #Figure S4
 postscript("FIGURES4.eps", width = 9, height = 9, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
@@ -1136,7 +1133,7 @@ boxplot(match.wUF.gp.se.gs~vars.gp.se.gs$closeness.group, col=c("blue", "blue", 
 dev.off()
 ```
 
-##Figure S5
+## Figure S5
 ```{r}
 #Figure S5
 postscript("FIGURES5.eps", width = 3, height = 3, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
@@ -1150,7 +1147,7 @@ plot(match.uwUF.gp.se.gs ~ match.prot.gp.se.gs, bg=c(rep("red",94), rep("blue", 
 dev.off()
 ```
 
-##Figure S6
+## Figure S6
 ```{r}
 #Figure S6A
 postscript("FIGURES6a.eps", width = 3, height = 3, horizontal = FALSE, onefile = FALSE, paper = "special", colormodel = "rgb", family = "ArialMT")
