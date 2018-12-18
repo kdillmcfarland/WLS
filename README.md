@@ -3,9 +3,7 @@ The Wisconsin Longitudinal Study (WLS, http://www.ssc.wisc.edu/wlsresearch/) is 
 
 > Herd, Pamela, Deborah Carr, and Carol Roan. 2014. "Cohort Profile: Wisconsin Longitudinal Study (WLS)." International Journal of Epidemiology 43:34-41 PMCID: PMC3937969
 
-In 2015-6, a microbiota component was added to the WLS with fecal sample collection. The bacterial microbiota was determined by amplicon sequencing of the 16S rRNA gene, variable region 4 (V4). Graduates (g, N=179), their spouses (p, N=63), their siblings (s, N=134), and their sibling's spouses (e, N=32) were successfully sequenced.
-
-This repository contains analyses associated with
+In 2015-6, a microbiota component was added to the WLS with fecal sample collection. This repository contains such analyses associated with
 
 > Dill-McFarland KA, Tang Z, Kemis JH, Kerby RL, Chen G, Palloni A, Sorenson T, Rey FE, Herd P. Close social relationships correlate with human gut microbiota composition. *Sci Rep* bioRxiv doi: [10.1101/428938](https://www.biorxiv.org/content/early/2018/09/27/428938).
 
